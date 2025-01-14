@@ -1,0 +1,25 @@
+This Skyhook Package allows you to run arbitrary bash scripts defined in your Skyhook Custom Resource.
+
+# Example package configuration
+```
+example:
+    version: 1.0.0
+    image: nvcr.io/skyhook/shellscript
+    configMap:
+    apply.sh: |-
+        #!/bin/bash
+        echo "hello world" > /skyhook-hello-world
+        sleep 60
+    apply_check.sh: |-
+        #!/bin/bash
+        cat /skyhook-hello-world
+        sleep 30
+    config.sh: |-
+        #!/bin/bash
+        echo "a config is run" >> /skyhook-hello-world
+        sleep 60
+    config_check.sh: |-
+        #!/bin/bash
+        grep "config" /skyhook-hello-world
+        sleep 30
+```

@@ -1,0 +1,78 @@
+{
+    "schema_version": "v1",
+    "package_name": "tuning",
+    "package_version": "1.0.0",
+    "expected_config_files": [],
+    "modes": {
+        "config": [
+            {
+                "name": "config",
+                "path": "update_settings.sh",
+                "arguments": [],
+                "returncodes": [
+                    0
+                ],
+                "on_host": true,
+                "env": {},
+                "idempotence": true,
+                "upgrade_step": false
+            }
+        ],
+        "config-check": [
+            {
+                "name": "config-check",
+                "path": "update_settings_check.sh",
+                "arguments": [],
+                "returncodes": [
+                    0
+                ],
+                "on_host": true,
+                "env": {},
+                "idempotence": true,
+                "upgrade_step": false
+            }
+        ],
+        "post-interrupt-check": [
+            {
+                "name": "post-interrupt-check",
+                "path": "update_settings_post_check.sh",
+                "arguments": [],
+                "returncodes": [
+                    0
+                ],
+                "on_host": true,
+                "env": {},
+                "idempotence": true,
+                "upgrade_step": false
+            }
+        ],
+        "uninstall": [
+            {
+                "name": "uninstall",
+                "path": "update_settings_uninstall.sh",
+                "arguments": [],
+                "returncodes": [
+                    0
+                ],
+                "on_host": true,
+                "env": {},
+                "idempotence": true,
+                "upgrade_step": false
+            }
+        ],
+        "uninstall-check": [
+            {
+                "name": "uninstall-check",
+                "path": "update_settings_uninstall_check.sh",
+                "arguments": [],
+                "returncodes": [
+                    0
+                ],
+                "on_host": true,
+                "env": {},
+                "idempotence": true,
+                "upgrade_step": false
+            }
+        ]
+    }
+}
