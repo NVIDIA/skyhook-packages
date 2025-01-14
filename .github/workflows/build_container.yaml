@@ -5,6 +5,7 @@ name: Create and publish a Skyhook Package
 on:
   push:
     tags:
+    - '**'
 
 
 # Defines two custom environment variables for the workflow. These are used for the Container registry domain, and a name for the Docker image that this workflow builds.
@@ -40,7 +41,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@9ec57ed1fcdbf14dcef7dfbe97b2010124a938b7
         with:
-          images: ${{ env.REGISTRY }}/skyhook-packages/${{ env.PACKAGE_NAME }}
+          images: ${{ env.REGISTRY }}/${{env.IMAGE_NAME}}/${{ env.PACKAGE_NAME }}
           tags: |
             type=match,pattern=\d.\d.\d
       # This step uses the `docker/build-push-action` action to build the image, based on your repository's `Dockerfile`. If the build succeeds, it pushes the image to GitHub Packages.
@@ -50,17 +51,17 @@ jobs:
         id: push
         uses: docker/build-push-action@f2a1d5e99d037542a71f64918e516c093c6f3fc4
         with:
-          context: .
+          context: ${{ env.PACKAGE_NAME }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          platform: linux/amd64,linux/arm64
+          #platforms: linux/amd64,linux/arm64
       
       # This step generates an artifact attestation for the image, which is an unforgeable statement about where and how it was built. It increases supply chain security for people who consume the image. For more information, see [AUTOTITLE](/actions/security-guides/using-artifact-attestations-to-establish-provenance-for-builds). 
       - name: Generate artifact attestation
         uses: actions/attest-build-provenance@v2
         with:
-          subject-name: ${{ env.REGISTRY }}/skyhook-packages/${{ env.PACKAGE_NAME }}
+          subject-name: ${{ env.REGISTRY }}/${{env.IMAGE_NAME}}/${{ env.PACKAGE_NAME }}
           subject-digest: ${{ steps.push.outputs.digest }}
           push-to-registry: true
       
