@@ -4,7 +4,7 @@ This Skyhook Package allows you to run arbitrary bash scripts defined in your Sk
 ```
 example:
     version: 1.0.0
-    image: nvcr.io/skyhook/shellscript
+    image: ghcr.io/nvidia/skyhook-packages/shellscript
     configMap:
     apply.sh: |-
         #!/bin/bash

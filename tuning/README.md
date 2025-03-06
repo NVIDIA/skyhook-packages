@@ -39,7 +39,7 @@ Specify different interrupts for the configmap interrupts to apply a more limite
 ```yaml
 tuning:
     version: 1.0.0
-    image: nvcr.io/skyhook/tuning:1.0.0
+    image: ghcr.io/nvidia/skyhook-packages/tuning:1.0.0
     interrupt:
         type: reboot
     configInterrupts:

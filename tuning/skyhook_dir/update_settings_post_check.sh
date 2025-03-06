@@ -24,7 +24,8 @@ if [ -f ${SKYHOOK_DIR}/configmaps/sysctl.conf ]; then
     done  <<< $(cat ${SKYHOOK_DIR}/configmaps/sysctl.conf)
 fi
 
-if [[ -f ${SKYHOOK_DIR}/configmaps/service_containerd.conf || -f ${SKYHOOK_DIR}/configmaps/service_crio.conf ]]; then
+function container_check {
+    file=$1
     echo "-------------------------"
     echo "Check container limits"
     echo "-------------------------"
@@ -67,7 +68,15 @@ if [[ -f ${SKYHOOK_DIR}/configmaps/service_containerd.conf || -f ${SKYHOOK_DIR}/
             failures=$(printf "%s\n%s" "${failures}" "$name: ${expected_value} != ${actual_value}")
         fi
     # Use cat here instead of < file in case of single line files
-    done <<< $(cat ${SKYHOOK_DIR}/configmaps/container_limits.conf)
+    done <<< $(cat $file | grep Limit)
+}
+
+if [ -f ${SKYHOOK_DIR}/configmaps/service_containerd.conf ]; then
+    container_check ${SKYHOOK_DIR}/configmaps/service_containerd.conf
+fi
+
+if [ -f ${SKYHOOK_DIR}/configmaps/service_crio.conf ]; then
+    container_check ${SKYHOOK_DIR}/configmaps/service_crio.conf
 fi
 
 if [ -f ${SKYHOOK_DIR}/configmaps/grub.conf ]; then
