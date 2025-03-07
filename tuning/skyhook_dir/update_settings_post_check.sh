@@ -1,7 +1,24 @@
 #!/bin/bash
 
-#  SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
-#  SPDX-License-Identifier: Apache-2.0
+# 
+# LICENSE START
+#
+#    Copyright (c) NVIDIA CORPORATION.  All rights reserved.
+#
+#    Licensed under the Apache License, Version 2.0 (the "License");
+#    you may not use this file except in compliance with the License.
+#    You may obtain a copy of the License at
+#
+#        http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS,
+#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#    See the License for the specific language governing permissions and
+#    limitations under the License.
+#
+# LICENSE END
+# 
 
 if [ ${SET_X:-0} -eq 1 ]; then
 set -x
@@ -24,7 +41,8 @@ if [ -f ${SKYHOOK_DIR}/configmaps/sysctl.conf ]; then
     done  <<< $(cat ${SKYHOOK_DIR}/configmaps/sysctl.conf)
 fi
 
-if [[ -f ${SKYHOOK_DIR}/configmaps/service_containerd.conf || -f ${SKYHOOK_DIR}/configmaps/service_crio.conf ]]; then
+function container_check {
+    file=$1
     echo "-------------------------"
     echo "Check container limits"
     echo "-------------------------"
@@ -67,7 +85,15 @@ if [[ -f ${SKYHOOK_DIR}/configmaps/service_containerd.conf || -f ${SKYHOOK_DIR}/
             failures=$(printf "%s\n%s" "${failures}" "$name: ${expected_value} != ${actual_value}")
         fi
     # Use cat here instead of < file in case of single line files
-    done <<< $(cat ${SKYHOOK_DIR}/configmaps/container_limits.conf)
+    done <<< $(cat $file | grep Limit)
+}
+
+if [ -f ${SKYHOOK_DIR}/configmaps/service_containerd.conf ]; then
+    container_check ${SKYHOOK_DIR}/configmaps/service_containerd.conf
+fi
+
+if [ -f ${SKYHOOK_DIR}/configmaps/service_crio.conf ]; then
+    container_check ${SKYHOOK_DIR}/configmaps/service_crio.conf
 fi
 
 if [ -f ${SKYHOOK_DIR}/configmaps/grub.conf ]; then
