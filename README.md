@@ -1,12 +1,12 @@
 # Package Structure
 ```
 [package name]
-|- skyhook_dir
-|   |- ...
-|- root_dir
-|   |- ...
-|- config.json
-|- Dockerfile
+├── Dockerfile
+├── config.json
+├── root_dir
+│   |- ...
+└── skyhook_dir
+    |- ...
 ```
 
 ## skyhook_dir
@@ -16,8 +16,8 @@ The `skyhook_dir` should contain any scripts you will use in your steps as well 
 The `root_dir` will be copied into the root filesystem directly. For example a root_dir structure of:
 ```
 root_dir
-|- etc
-   |- hosts
+└── etc
+    └── hosts
 ```
 Would overwrite the /etc/hosts file on the node it was run on.
 
