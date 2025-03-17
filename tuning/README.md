@@ -68,7 +68,7 @@ Update just sysctl
 ```yaml
 tuning:
     version: 1.0.0
-    image: nvcr.io/skyhook/tuning
+    image: ghcr.io/nvidia/skyhook-packages/tuning
     interrupt:
         type: restart_all_services
     configMap:
@@ -84,7 +84,7 @@ Update containerd stack size
 ```yaml
 tuning:
     version: 1.0.0
-    image: nvcr.io/skyhook/tuning
+    image: ghcr.io/nvidia/skyhook-packages/tuning
     interrupt:
         type: service
         services:
