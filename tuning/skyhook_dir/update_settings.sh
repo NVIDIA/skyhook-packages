@@ -88,17 +88,18 @@ if [ -f ${SKYHOOK_DIR}/configmaps/ulimit.conf ]; then
     done
 fi
 
-# Loop through all service files and add them as drop-ins
-for f in ${SKYHOOK_DIR}/configmaps/service_*.conf; do
-    service_name=$(basename ${f} | cut -f 2 -d _ | cut -f 1 -d .)
-    echo "-------------------------"
-    echo "Updating ${service_name} settings"
-    echo "-------------------------"
-    mkdir -p /etc/systemd/system/${service_name}.service.d
-    cp ${f} /etc/systemd/system/${service_name}.service.d/999-${package_name}-tuning.conf
-done
+if [ $(ls ${SKYHOOK_DIR}/configmaps | grep -c service_.*.conf) -eq 0 ]; then
+    # Loop through all service files and add them as drop-ins
+    for f in ${SKYHOOK_DIR}/configmaps/service_*.conf; do
+        service_name=$(basename ${f} | cut -f 2 -d _ | cut -f 1 -d .)
+        echo "-------------------------"
+        echo "Updating ${service_name} settings"
+        echo "-------------------------"
+        mkdir -p /etc/systemd/system/${service_name}.service.d
+        cp ${f} /etc/systemd/system/${service_name}.service.d/999-${package_name}-tuning.conf
+    done
 
-if [ -z $(ls ${SKYHOOK_DIR}/configmaps/service_*.conf) ]; then
+
     echo "-------------------------"
     echo "Reloading systemd"
     echo "-------------------------"
