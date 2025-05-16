@@ -88,7 +88,7 @@ if [ -f ${SKYHOOK_DIR}/configmaps/ulimit.conf ]; then
     done
 fi
 
-if [ $(ls ${SKYHOOK_DIR}/configmaps | grep -c service_.*.conf) -eq 0 ]; then
+if [ $(ls ${SKYHOOK_DIR}/configmaps | grep -c service_.*.conf) -gt 0 ]; then
     # Loop through all service files and add them as drop-ins
     for f in ${SKYHOOK_DIR}/configmaps/service_*.conf; do
         service_name=$(basename ${f} | cut -f 2 -d _ | cut -f 1 -d .)
