@@ -38,7 +38,7 @@ Use main reboot interrupt for the first apply.
 Specify different interrupts for the configmap interrupts to apply a more limited one depending on which one changes.
 ```yaml
 tuning:
-    version: 1.0.0
+    version: 1.1.3
     image: ghcr.io/nvidia/skyhook-packages/tuning
     interrupt:
         type: reboot
@@ -60,14 +60,14 @@ tuning:
             vm.max_map_count=262144
             vm.min_free_kbytes=65536
         ulimit.conf: |-
-            memlock: 128
-            fsize: 1000
+            memlock=128
+            fsize=1000
 ```
 
 Update just sysctl
 ```yaml
 tuning:
-    version: 1.0.0
+    version: 1.1.3
     image: ghcr.io/nvidia/skyhook-packages/tuning
     interrupt:
         type: restart_all_services
@@ -83,7 +83,7 @@ tuning:
 Update containerd stack size
 ```yaml
 tuning:
-    version: 1.0.0
+    version: 1.1.3
     image: ghcr.io/nvidia/skyhook-packages/tuning
     interrupt:
         type: service
