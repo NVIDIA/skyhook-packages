@@ -47,7 +47,9 @@ fi
 if [ -f ${SKYHOOK_DIR}/configmaps/ulimit.conf ]; then
     while IFS= read -r line
     do
-        if [ $(grep -c "${line}" /etc/security/limits.d/999-${package_name}-tuning.conf) -eq 0 ]; then
+        name=$(echo $line | cut -f 1 -d =)
+        value=$(echo $line | cut -f 2 -d =)
+        if [ $(grep -c "hard ${name} ${value}" /etc/security/limits.d/999-${package_name}-tuning.conf) -eq 0 ]; then
             failures=$(printf "%s\n%s" "$failures" "No ${line} setting in /etc/security/limits.d/999-${package_name}-tuning.conf")
         fi
     done  <<< $(cat ${SKYHOOK_DIR}/configmaps/ulimit.conf)
