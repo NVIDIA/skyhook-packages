@@ -1,7 +1,7 @@
 {
     "schema_version": "v1",
     "package_name": "shellscript",
-    "package_version": "1.0.0",
+    "package_version": "1.1.1",
     "expected_config_files": [],
     "modes": {
         "apply": [
@@ -64,7 +64,7 @@
             {
                 "name": "post-interrupt",
                 "path": "shellscript_run.sh",
-                "arguments": ["uninstall"],
+                "arguments": ["post_interrupt"],
                 "returncodes": [
                     0
                 ],
@@ -76,9 +76,9 @@
         ],
         "post-interrupt-check": [
             {
-                "name": "uninstall-check",
+                "name": "post-interrupt-check",
                 "path": "shellscript_run.sh",
-                "arguments": ["uninstall_check"],
+                "arguments": ["post_interrupt_check"],
                 "returncodes": [
                     0
                 ],
