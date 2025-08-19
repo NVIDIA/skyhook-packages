@@ -42,6 +42,24 @@ A specialized package for system-level tuning and configuration management.
 - `ulimit.conf` - User limits (immediate effect + container limits on reboot)
 - `service_{name}.conf` - Systemd service configurations (requires service restart)
 
+### 3. Tuned Package (`tuned/`)
+A package for managing the tuned system tuning daemon on Linux systems for automated performance optimization.
+
+**Capabilities:**
+- Multi-distribution support (Ubuntu/Debian, CentOS/RHEL/Amazon Linux, Fedora)
+- Automated tuned package installation and service management
+- Custom tuned profile deployment via configmaps
+- Built-in profile validation and verification
+- Handles necessary interrupts for tuning parameters that require reboots/restarts
+- Comprehensive installation and configuration validation
+
+**Key features:**
+- Deploy custom tuned profiles from configmaps
+- Apply system-wide performance tuning profiles
+- Automatic service lifecycle management (install, configure, validate, uninstall)
+- Support for built-in profiles (balanced, powersave, throughput-performance, etc.)
+- Idempotent operations safe for repeated execution
+
 ## Package Structure
 
 Each package follows the standard skyhook package structure:
@@ -168,7 +186,10 @@ This validation step is crucial as the agent uses JSON schema validation to ensu
 
 ## Getting Started
 
-1. **Choose a package** that fits your use case (shellscript for custom scripts, tuning for system configuration)
+1. **Choose a package** that fits your use case:
+   - `shellscript` for custom scripts and automation
+   - `tuning` for system-level configuration management  
+   - `tuned` for automated performance tuning with the tuned daemon
 2. **Review the package README** for specific usage instructions and examples
 3. **Create a Skyhook Custom Resource** referencing the package
 4. **Apply the SCR** to your cluster and monitor the package deployment
@@ -179,6 +200,7 @@ This validation step is crucial as the agent uses JSON schema validation to ensu
 - [Package Lifecycle Documentation](./PACKAGE_LIFECYCLE.md) - Comprehensive guide to package lifecycle stages
 - [Shellscript Package](./shellscript/README.md) - Usage guide for the shellscript package
 - [Tuning Package](./tuning/README.md) - Usage guide for the tuning package
+- [Tuned Package](./tuned/README.md) - Usage guide for the tuned package
 - [NVIDIA Skyhook Documentation](https://github.com/NVIDIA/skyhook) - Main skyhook operator documentation
 
 ## Contributing
