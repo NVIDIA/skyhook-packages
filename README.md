@@ -60,6 +60,24 @@ A package for managing the tuned system tuning daemon on Linux systems for autom
 - Support for built-in profiles (balanced, powersave, throughput-performance, etc.)
 - Idempotent operations safe for repeated execution
 
+### 4. Kdump Package (`kdump/`)
+A package for automated installation and configuration of kdump crash dump collection on Linux systems.
+
+**Capabilities:**
+- Multi-distribution support (Ubuntu/Debian, CentOS/RHEL/Amazon Linux, Fedora)
+- Automated kdump package installation and service management
+- Crashkernel parameter configuration in GRUB
+- Custom kdump configuration deployment via configmaps
+- Comprehensive validation and health checks
+- Safe uninstallation with complete cleanup
+
+**Key features:**
+- Configure kernel crash dump functionality for debugging system failures
+- Automatic crashkernel memory reservation in GRUB
+- Support for custom kdump.conf configurations
+- Post-interrupt validation of crash kernel functionality
+- Complete lifecycle management (install, configure, validate, uninstall)
+
 ## Package Structure
 
 Each package follows the standard skyhook package structure:
@@ -190,6 +208,7 @@ This validation step is crucial as the agent uses JSON schema validation to ensu
    - `shellscript` for custom scripts and automation
    - `tuning` for system-level configuration management  
    - `tuned` for automated performance tuning with the tuned daemon
+   - `kdump` for kernel crash dump collection and debugging
 2. **Review the package README** for specific usage instructions and examples
 3. **Create a Skyhook Custom Resource** referencing the package
 4. **Apply the SCR** to your cluster and monitor the package deployment
@@ -201,6 +220,7 @@ This validation step is crucial as the agent uses JSON schema validation to ensu
 - [Shellscript Package](./shellscript/README.md) - Usage guide for the shellscript package
 - [Tuning Package](./tuning/README.md) - Usage guide for the tuning package
 - [Tuned Package](./tuned/README.md) - Usage guide for the tuned package
+- [Kdump Package](./kdump/README.md) - Usage guide for the kdump package
 - [NVIDIA Skyhook Documentation](https://github.com/NVIDIA/skyhook) - Main skyhook operator documentation
 
 ## Contributing
