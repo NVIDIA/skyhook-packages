@@ -1,0 +1,106 @@
+{
+    "schema_version": "v1",
+    "package_name": "kdump",
+    "package_version": "1.0.0",
+    "expected_config_files": [],
+    "modes": {
+        "uninstall": [
+            {
+                "name": "uninstall",
+                "path": "uninstall_kdump.sh",
+                "arguments": [],
+                "returncodes": [
+                    0
+                ],
+                "on_host": true,
+                "env": {},
+                "idempotence": true,
+                "upgrade_step": false
+            }
+        ],
+        "uninstall-check": [
+            {
+                "name": "uninstall-check",
+                "path": "uninstall_kdump_check.sh",
+                "arguments": [],
+                "returncodes": [
+                    0
+                ],
+                "on_host": true,
+                "env": {},
+                "idempotence": true,
+                "upgrade_step": false
+            }
+        ],
+        "apply": [
+            {
+                "name": "apply",
+                "path": "install_kdump.sh",
+                "arguments": [],
+                "returncodes": [
+                    0
+                ],
+                "on_host": true,
+                "env": {},
+                "idempotence": true,
+                "upgrade_step": false
+            }
+        ],
+        "apply-check": [
+            {
+                "name": "apply-check",
+                "path": "install_kdump_check.sh",
+                "arguments": [],
+                "returncodes": [
+                    0
+                ],
+                "on_host": true,
+                "env": {},
+                "idempotence": true,
+                "upgrade_step": false
+            }
+        ],
+        "config": [
+            {
+                "name": "config",
+                "path": "configure_kdump.sh",
+                "arguments": [],
+                "returncodes": [
+                    0
+                ],
+                "on_host": true,
+                "env": {},
+                "idempotence": true,
+                "upgrade_step": false
+            }
+        ],
+        "config-check": [
+            {
+                "name": "config-check",
+                "path": "configure_kdump_check.sh",
+                "arguments": [],
+                "returncodes": [
+                    0
+                ],
+                "on_host": true,
+                "env": {},
+                "idempotence": true,
+                "upgrade_step": false
+            }
+        ],
+        "post-interrupt-check": [
+            {
+                "name": "post-interrupt-check",
+                "path": "kdump_post_interrupt_check.sh",
+                "arguments": [],
+                "returncodes": [
+                    0
+                ],
+                "on_host": true,
+                "env": {},
+                "idempotence": true,
+                "upgrade_step": false
+            }
+        ]
+    }
+}
