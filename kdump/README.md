@@ -83,8 +83,8 @@ spec:
       skyhook.nvidia.com/node-type: worker
   packages:
     kdump:
-      version: 1.0.0
-      image: ghcr.io/nvidia/skyhook-packages/kdump:1.0.0
+      version: 1.1.0
+      image: ghcr.io/nvidia/skyhook-packages/kdump:1.1.0
       interrupt:
         type: reboot  # required for crashkernel parameter to take effect
       configInterrupts:
@@ -106,8 +106,8 @@ spec:
       skyhook.nvidia.com/node-type: worker
   packages:
     kdump:
-      version: 1.0.0
-      image: ghcr.io/nvidia/skyhook-packages/kdump:1.0.0
+      version: 1.1.0
+      image: ghcr.io/nvidia/skyhook-packages/kdump:1.1.0
       interrupt:
         type: reboot # required for crashkernel parameter to take effect
       configInterrupts:
