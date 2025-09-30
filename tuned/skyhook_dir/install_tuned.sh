@@ -24,7 +24,7 @@ case $ID in
     ubuntu* | debian*)
         export DEBIAN_FRONTEND=noninteractive
 
-        apt update -y && apt upgrade -y
+        apt update -y
         apt install -o DPKG::Lock::Timeout=60 -y tuned
     ;;
     centos* | redhat* | amzn*)
