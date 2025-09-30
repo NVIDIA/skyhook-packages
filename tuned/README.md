@@ -178,6 +178,76 @@ Deploy the package with apply mode to install tuned with default settings.
 2. Create a `tuned_profile` configmap specifying which profile to activate
 3. Deploy the package with config mode to apply the custom configuration
 
+### Complete Skyhook Configuration Example
+
+Here's a complete example of using the tuned package with Skyhook to deploy custom AI/ML performance profiles:
+
+```yaml
+apiVersion: skyhook.nvidia.com/v1alpha1
+kind: Skyhook
+metadata:
+  labels:
+    app.kubernetes.io/part-of: skyhook-operator
+    app.kubernetes.io/created-by: skyhook-operator
+  name: skyhook-test
+spec:
+  nodeSelectors:
+    matchLabels:
+      eks.amazonaws.com/nodegroup: ml-nodes
+  packages:
+    tuned:
+      image: nvcr.io/nvidian/swgpu-baseos/tuned
+      version: 1.1.0
+      interrupt:
+        type: reboot
+      configInterrupts:
+        tuned_profile:
+          type: reboot
+        custom_profile:
+          type: reboot
+        custom_profile_1:
+          type: reboot
+      env:
+        - name: INTERRUPT
+          value: "true"
+      configMap:
+        tuned_profile: custom_profile
+        custom_profile: |-
+            [main]
+            summary=AI/ML kernel settings
+            include=custom_profile_1
+
+            [sysctl]
+            kernel.numa_balancing=1                  # avoid NUMA page bouncing
+            kernel.panic=10
+
+            [bootloader]
+            cmdline_myprofile=-kernel.panic +kernel.panic=20
+        custom_profile_1: |-
+            [main]
+            summary=AI/ML performance profile
+
+            [cpu]
+            governor=performance             # lock CPUs at max frequency
+            energy_perf_bias=performance     # disable energy saving bias
+            force_latency=0                  # minimize C-state latency
+
+            [disk]
+            readahead=4096                   # bigger readahead for large dataset loads
+
+            [vm]
+            transparent_hugepages=always     # large pages help with tensor allocations
+            swappiness=10                    # avoid swapping under load
+```
+
+This example demonstrates:
+- **Node targeting**: Using `nodeSelectors` to target specific node groups
+- **Interrupt handling**: Configuring reboot interrupts for kernel-level changes
+- **Environment variables**: Setting `INTERRUPT=true` to handle verification during config changes
+- **Custom profiles**: Creating hierarchical profiles with `include` directive
+- **AI/ML optimizations**: Performance settings optimized for machine learning workloads
+- **Kernel parameters**: Using `[sysctl]` and `[bootloader]` sections for low-level tuning
+
 ### Available Tuned Profiles
 
 Common built-in profiles include:
