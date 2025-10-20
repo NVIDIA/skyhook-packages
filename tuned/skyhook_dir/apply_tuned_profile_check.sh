@@ -20,6 +20,7 @@ set -x
 
 CONFIGMAP_DIR="${SKYHOOK_DIR}/configmaps"
 TUNED_DIR="/etc/tuned"
+SCRIPTS_DIR="/etc/tuned/scripts"
 
 # check tuned service is installed and running
 if ! command -v tuned-adm >/dev/null 2>&1; then
@@ -38,12 +39,43 @@ if [ ! -d "$CONFIGMAP_DIR" ]; then
     exit 1
 fi
 
-# verify custom profiles
+if [ ! -d "$SCRIPTS_DIR" ]; then
+    echo "ERROR: scripts directory does not exist: $SCRIPTS_DIR"
+    exit 1
+fi
+
+# verify deployed scripts
+for file in "$CONFIGMAP_DIR"/*_script; do
+    [ -f "$file" ] || continue
+    
+    script_name=$(basename "$file")
+    script_path="$SCRIPTS_DIR/${script_name#*_script}"
+    
+    # If the script name is just "_script", use the full filename
+    if [ "${script_name#*_script}" = "" ]; then
+        script_path="$SCRIPTS_DIR/$(basename "$file")"
+    fi
+    
+    if [ ! -f "$script_path" ]; then
+        echo "ERROR: deployed script missing: $script_path"
+        exit 1
+    fi
+    
+    if [ ! -x "$script_path" ]; then
+        echo "ERROR: deployed script not executable: $script_path"
+        exit 1
+    fi
+    
+    echo "verified deployed script: $script_name -> $script_path"
+done
+
+# verify custom profiles (skip tuned_profile and *_script files)
 for file in "$CONFIGMAP_DIR"/*; do
     [ -f "$file" ] || continue
 
     base_file=$(basename "$file")
     [ "$base_file" = "tuned_profile" ] && continue
+    [[ "$base_file" == *"_script" ]] && continue    # skip script files
 
     custom_profile_dir="$TUNED_DIR/$base_file"
     custom_profile_file="$custom_profile_dir/tuned.conf"

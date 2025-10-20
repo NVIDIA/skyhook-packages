@@ -21,16 +21,39 @@ set -u
 
 CONFIGMAP_DIR="${SKYHOOK_DIR}/configmaps"
 TUNED_DIR="/etc/tuned"
+SCRIPTS_DIR="/etc/tuned/scripts"
 
 # ensure tuned directory exists
 sudo mkdir -p "$TUNED_DIR"
+sudo mkdir -p "$SCRIPTS_DIR"
 
-# process all other files as custom profiles
+# First, deploy all scripts ending with "_script" to the shared scripts directory
+echo "Deploying scripts to $SCRIPTS_DIR..."
+for file in "$CONFIGMAP_DIR"/*_script; do
+    [ -f "$file" ] || continue # make sure file exists
+    
+    script_name=$(basename "$file")
+    script_path="$SCRIPTS_DIR/${script_name#*_script}"
+    
+    # If the script name is just "_script", use the full filename
+    if [ "${script_name#*_script}" = "" ]; then
+        script_path="$SCRIPTS_DIR/$(basename "$file")"
+    fi
+    
+    # Copy the script and make it executable
+    sudo cp "$file" "$script_path"
+    sudo chmod +x "$script_path"
+    echo "deployed script: $script_name -> $script_path"
+done
+
+# process all other files as custom profiles (skip tuned_profile and *_script files)
 for file in "$CONFIGMAP_DIR"/*; do
     [ -f "$file" ] || continue # make sure file exists
-    [ "$(basename "$file")" = "tuned_profile" ] && continue  # skip tuned_profile
 
     profile_name=$(basename "$file")
+    [ "$profile_name" = "tuned_profile" ] && continue  # skip tuned_profile
+    [[ "$profile_name" == *"_script" ]] && continue    # skip script files
+    
     custom_profile_dir="$TUNED_DIR/$profile_name"
 
     # Create a directory for the custom profile if it doesn't exist

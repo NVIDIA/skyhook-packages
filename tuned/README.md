@@ -145,10 +145,16 @@ The package expects configmaps to be available in `${SKYHOOK_DIR}/configmaps/`:
 
 #### Optional Configmaps
 
-- **Custom profile files**: Any other files in the configmaps directory will be treated as custom tuned profile configurations
+- **Custom profile files**: Any files in the configmaps directory (except `tuned_profile` and `*_script` files) will be treated as custom tuned profile configurations
   - File name becomes the profile name
   - File contents become the `tuned.conf` for that profile
   - Files are deployed to `/etc/tuned/<profile_name>/tuned.conf`
+
+- **Script files**: Any files ending with `_script` will be deployed as executable scripts to `/etc/tuned/scripts/`
+  - File name pattern: `<name>_script` (e.g., `setup_script`, `my_optimization_script`)
+  - Scripts are deployed to `/etc/tuned/scripts/<name>` (the `_script` suffix is removed)
+  - Scripts are automatically made executable (`chmod +x`)
+  - Can be referenced in tuned profiles using the `[script]` plugin
 
 ### Example Custom Profile
 
@@ -166,6 +172,49 @@ readahead=4096
 
 [vm]
 transparent_hugepages=never
+```
+
+### Example Custom Profile with Scripts
+
+```ini
+# configmaps/ai-optimized-profile
+[main]
+summary=AI/ML optimized profile with custom scripts
+
+[cpu]
+governor=performance
+energy_perf_bias=performance
+
+[script]
+type=script
+script=/etc/tuned/scripts/ai_setup
+
+[vm]
+transparent_hugepages=always
+```
+
+```bash
+# configmaps/ai_setup_script
+#!/bin/bash
+# This script will be deployed to /etc/tuned/scripts/ai_setup
+
+echo "Setting up AI/ML optimizations..."
+
+# Configure GPU memory settings
+if [ -d /sys/class/drm ]; then
+    echo "Configuring GPU settings for AI workloads"
+    # Add GPU-specific optimizations here
+fi
+
+# Set up NUMA topology optimizations
+echo "Configuring NUMA settings for AI workloads"
+for node in /sys/devices/system/node/node*; do
+    if [ -d "$node" ]; then
+        echo 0 > "$node/compact"
+    fi
+done
+
+echo "AI optimization setup complete"
 ```
 
 ## Usage Examples
@@ -223,6 +272,9 @@ spec:
 
             [bootloader]
             cmdline_myprofile=-kernel.panic +kernel.panic=20
+            
+            [script]
+            script=/etc/tuned/scripts/ai_init
         custom_profile_1: |-
             [main]
             summary=AI/ML performance profile
@@ -238,6 +290,22 @@ spec:
             [vm]
             transparent_hugepages=always     # large pages help with tensor allocations
             swappiness=10                    # avoid swapping under load
+        ai_init_script: |-
+            #!/bin/bash
+            # Custom AI/ML initialization script
+            echo "Initializing AI/ML optimizations..."
+            
+            # Configure GPU memory pools
+            if command -v nvidia-smi >/dev/null 2>&1; then
+                echo "Configuring NVIDIA GPU settings"
+                nvidia-smi -pm 1  # Enable persistence mode
+            fi
+            
+            # Set up memory allocation patterns for AI workloads
+            echo "Configuring memory allocation for AI workloads"
+            echo 1 > /proc/sys/vm/overcommit_memory
+            
+            echo "AI initialization complete"
 ```
 
 This example demonstrates:
@@ -245,6 +313,8 @@ This example demonstrates:
 - **Interrupt handling**: Configuring reboot interrupts for kernel-level changes
 - **Environment variables**: Setting `INTERRUPT=true` to handle verification during config changes
 - **Custom profiles**: Creating hierarchical profiles with `include` directive
+- **Custom scripts**: Using `_script` configmaps to deploy executable scripts
+- **Script integration**: Referencing deployed scripts in profiles using the `[script]` plugin
 - **AI/ML optimizations**: Performance settings optimized for machine learning workloads
 - **Kernel parameters**: Using `[sysctl]` and `[bootloader]` sections for low-level tuning
 
