@@ -137,10 +137,13 @@ The package expects configmaps to be available in `${SKYHOOK_DIR}/configmaps/`:
 
 #### Required Configmaps
 
-- **`tuned_profile`**: Contains the name of the tuned profile to apply
+- **`tuned_profile`**: Contains the name of the tuned profile(s) to apply. Supports multiple space-separated profiles for merged configurations.
   ```
-  # Example content
+  # Single profile example
   balanced
+  
+  # Multiple profiles example (settings from later profiles take precedence)
+  throughput-performance network-latency
   ```
 
 #### Optional Configmaps

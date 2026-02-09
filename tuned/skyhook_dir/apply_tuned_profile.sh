@@ -64,17 +64,24 @@ for file in "$CONFIGMAP_DIR"/*; do
     echo "created custom tuned profile: $profile_name"
 done
 
-# Now apply the main profile
+# Now apply the main profile(s)
+# Supports multiple space-separated profiles, e.g., "hpc-compute aws"
 TUNED_PROFILE_FILE="$CONFIGMAP_DIR/tuned_profile"
 if [ -f "$TUNED_PROFILE_FILE" ]; then
-    tuned_profile=$(cat "$TUNED_PROFILE_FILE" | xargs)  # read and trim
-    if tuned-adm list | grep -q "^- $tuned_profile"; then
-        echo "applying tuned profile: $tuned_profile"
-        sudo tuned-adm profile "$tuned_profile"
-    else
-        echo "ERROR: tuned profile '$tuned_profile' not found"
-        exit 1
-    fi
+    tuned_profiles=$(cat "$TUNED_PROFILE_FILE" | xargs)  # read and trim
+    
+    # Validate each profile exists before applying
+    available_profiles=$(tuned-adm list)
+    for profile in $tuned_profiles; do
+        if ! echo "$available_profiles" | grep -q "^- $profile$"; then
+            echo "ERROR: tuned profile '$profile' not found"
+            exit 1
+        fi
+    done
+    
+    echo "applying tuned profile(s): $tuned_profiles"
+    # shellcheck disable=SC2086
+    sudo tuned-adm profile $tuned_profiles
 else
     echo "WARNING: no tuned_profile file found in $CONFIGMAP_DIR"
 fi
