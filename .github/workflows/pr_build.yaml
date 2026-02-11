@@ -145,12 +145,21 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@9ec57ed1fcdbf14dcef7dfbe97b2010124a938b7
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.package }}
+          tags: |
+            type=raw,value=${{ steps.version.outputs.full_tag }}
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.package }}
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.package }}:${{ steps.version.outputs.full_tag }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64,linux/arm64
           build-args: ${{ steps.preprocess.outputs.BUILD_ARGS }}
 
