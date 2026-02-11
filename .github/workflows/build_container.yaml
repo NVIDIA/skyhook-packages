@@ -51,6 +51,23 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Setup env vars
         run: echo "PACKAGE_NAME=$(echo "${{ github.ref_name }}" | sed 's;refs/tags;;g'| cut -f 1 -d /)" >> $GITHUB_ENV
+      
+      # Run preprocess script if it exists to get build args (e.g., dependency versions)
+      - name: Run preprocess script
+        id: preprocess
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PREPROCESS_SCRIPT="${{ env.PACKAGE_NAME }}/preprocess.sh"
+          if [ -f "$PREPROCESS_SCRIPT" ]; then
+            echo "Running preprocess script: $PREPROCESS_SCRIPT"
+            chmod +x "$PREPROCESS_SCRIPT"
+            "$PREPROCESS_SCRIPT"
+          else
+            echo "No preprocess script found at $PREPROCESS_SCRIPT"
+            echo "BUILD_ARGS=" >> $GITHUB_OUTPUT
+          fi
+      
       # This step uses [docker/metadata-action](https://github.com/docker/metadata-action#about) to extract tags and labels that will be applied to the specified image. The `id` "meta" allows the output of this step to be referenced in a subsequent step. The `images` value provides the base name for the tags and labels.
       - name: Extract metadata (tags, labels) for Docker
         id: meta
@@ -80,6 +97,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64,linux/arm64
+          build-args: ${{ steps.preprocess.outputs.BUILD_ARGS }}
       
       # This step generates an artifact attestation for the image, which is an unforgeable statement about where and how it was built. It increases supply chain security for people who consume the image. For more information, see [AUTOTITLE](/actions/security-guides/using-artifact-attestations-to-establish-provenance-for-builds). 
       - name: Generate artifact attestation

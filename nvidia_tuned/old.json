@@ -1,0 +1,36 @@
+{
+    "schema_version": "v1",
+    "package_name": "nvidia_tuned",
+    "package_version": "1.0.0",
+    "expected_config_files": ["profile"],
+    "modes": {
+        "prepare": [
+            {
+                "name": "prepare",
+                "path": "prepare_nvidia_profiles.sh",
+                "arguments": [],
+                "returncodes": [
+                    0
+                ],
+                "on_host": true,
+                "env": {},
+                "idempotence": true,
+                "upgrade_step": false
+            }
+        ],
+        "prepare-check": [
+            {
+                "name": "prepare-check",
+                "path": "prepare_nvidia_profiles_check.sh",
+                "arguments": [],
+                "returncodes": [
+                    0
+                ],
+                "on_host": true,
+                "env": {},
+                "idempotence": true,
+                "upgrade_step": false
+            }
+        ]
+    }
+}

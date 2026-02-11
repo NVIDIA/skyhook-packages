@@ -1,0 +1,184 @@
+# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Build Changed Packages (PR)
+
+on:
+  pull_request:
+    branches:
+      - main
+      - master
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # First job: detect which packages have changed
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      packages: ${{ steps.changes.outputs.packages }}
+      has_changes: ${{ steps.changes.outputs.has_changes }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed packages
+        id: changes
+        run: |
+          # Get list of changed files compared to base branch
+          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
+          
+          echo "Changed files:"
+          echo "$CHANGED_FILES"
+          
+          # Find unique package directories that have changes
+          # A package is any directory containing a Dockerfile
+          PACKAGES=""
+          for dir in */; do
+            dir_name="${dir%/}"
+            # Skip hidden directories and non-package directories
+            [[ "$dir_name" == .* ]] && continue
+            [[ "$dir_name" == "scripts" ]] && continue
+            
+            # Check if this directory has a Dockerfile
+            if [ -f "${dir_name}/Dockerfile" ]; then
+              # Check if any files in this package changed
+              if echo "$CHANGED_FILES" | grep -q "^${dir_name}/"; then
+                if [ -n "$PACKAGES" ]; then
+                  PACKAGES="${PACKAGES},\"${dir_name}\""
+                else
+                  PACKAGES="\"${dir_name}\""
+                fi
+                echo "Package changed: ${dir_name}"
+              fi
+            fi
+          done
+          
+          if [ -n "$PACKAGES" ]; then
+            echo "packages=[${PACKAGES}]" >> $GITHUB_OUTPUT
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          else
+            echo "packages=[]" >> $GITHUB_OUTPUT
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+            echo "No package changes detected"
+          fi
+
+  # Second job: build changed packages
+  build:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.has_changes == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package: ${{ fromJson(needs.detect-changes.outputs.packages) }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Get latest tag and short SHA
+        id: version
+        run: |
+          # Get short SHA
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          echo "short_sha=${SHORT_SHA}" >> $GITHUB_OUTPUT
+          
+          # Find the latest tag for this package (format: package/X.Y.Z)
+          LATEST_TAG=$(git tag -l "${{ matrix.package }}/*" --sort=-v:refname | head -1)
+          
+          if [ -n "$LATEST_TAG" ]; then
+            # Extract version from tag (e.g., "nvidia_tuned/1.2.0" -> "1.2.0")
+            VERSION=$(echo "$LATEST_TAG" | cut -d'/' -f2)
+            echo "Found latest tag: $LATEST_TAG (version: $VERSION)"
+          else
+            # No existing tag, use 0.0.0 as base
+            VERSION="0.0.0"
+            echo "No existing tags found for ${{ matrix.package }}, using $VERSION"
+          fi
+          
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "full_tag=${VERSION}+${SHORT_SHA}" >> $GITHUB_OUTPUT
+
+      - name: Run preprocess script
+        id: preprocess
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PREPROCESS_SCRIPT="${{ matrix.package }}/preprocess.sh"
+          if [ -f "$PREPROCESS_SCRIPT" ]; then
+            echo "Running preprocess script: $PREPROCESS_SCRIPT"
+            chmod +x "$PREPROCESS_SCRIPT"
+            "$PREPROCESS_SCRIPT"
+          else
+            echo "No preprocess script found at $PREPROCESS_SCRIPT"
+            echo "BUILD_ARGS=" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.package }}
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.package }}:${{ steps.version.outputs.full_tag }}
+          platforms: linux/amd64,linux/arm64
+          build-args: ${{ steps.preprocess.outputs.BUILD_ARGS }}
+
+  # Summary job to report status
+  build-summary:
+    needs: [detect-changes, build]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check build results
+        env:
+          REGISTRY: ghcr.io
+          IMAGE_NAME: ${{ github.repository }}
+        run: |
+          if [ "${{ needs.detect-changes.outputs.has_changes }}" == "false" ]; then
+            echo "✅ No packages changed - nothing to build"
+            exit 0
+          fi
+          
+          if [ "${{ needs.build.result }}" == "success" ]; then
+            echo "✅ All changed packages built and pushed successfully"
+            echo ""
+            echo "Packages built: ${{ needs.detect-changes.outputs.packages }}"
+            echo ""
+            echo "Images pushed to: ${REGISTRY}/${IMAGE_NAME}/<package>:<version>+<sha>"
+          elif [ "${{ needs.build.result }}" == "skipped" ]; then
+            echo "⏭️ Build was skipped"
+          else
+            echo "❌ Some packages failed to build"
+            exit 1
+          fi

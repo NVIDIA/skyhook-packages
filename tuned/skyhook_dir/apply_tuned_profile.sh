@@ -19,6 +19,11 @@
 set -xe
 set -u
 
+# Source shared utilities
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=utils.sh
+source "${SCRIPT_DIR}/utils.sh"
+
 CONFIGMAP_DIR="${SKYHOOK_DIR}/configmaps"
 TUNED_DIR="/etc/tuned"
 SCRIPTS_DIR="/etc/tuned/scripts"
@@ -69,6 +74,13 @@ done
 TUNED_PROFILE_FILE="$CONFIGMAP_DIR/tuned_profile"
 if [ -f "$TUNED_PROFILE_FILE" ]; then
     tuned_profiles=$(cat "$TUNED_PROFILE_FILE" | xargs)  # read and trim
+    
+    # Count the number of profiles
+    # shellcheck disable=SC2086
+    profile_count=$(echo $tuned_profiles | wc -w)
+    
+    # Check tuned version if multiple profiles are specified
+    check_tuned_version_for_multiple_profiles "$profile_count"
     
     # Validate each profile exists before applying
     available_profiles=$(tuned-adm list)
