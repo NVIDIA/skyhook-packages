@@ -17,4 +17,4 @@ ARG TUNED_VERSION=1.2.0
 
 FROM ghcr.io/nvidia/skyhook-packages/tuned:${TUNED_VERSION}
 
-COPY ./root_dir /skyhook-package/root_dir
+COPY ./ /skyhook-package
