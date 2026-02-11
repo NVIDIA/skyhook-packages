@@ -62,7 +62,7 @@ deploy_common_profiles() {
         for profile_dir in "$PROFILES_DIR/common"/*/; do
             [ -d "$profile_dir" ] || continue
             profile_name=$(basename "$profile_dir")
-            sudo cp -rL "$profile_dir" "$TUNED_SYSTEM_DIR/$profile_name"
+            cp -rL "$profile_dir" "$TUNED_SYSTEM_DIR/$profile_name"
             echo "Deployed common profile: $profile_name"
         done
     else
@@ -89,11 +89,11 @@ deploy_os_profiles() {
     fi
     
     # Copy ALL profiles from the OS directory (dereference symlinks with -L)
-    sudo mkdir -p "$TUNED_USER_DIR"
+    mkdir -p "$TUNED_USER_DIR"
     for profile_dir in "$os_dir"/*/; do
         [ -d "$profile_dir" ] || continue
         profile_name=$(basename "$profile_dir")
-        sudo cp -rL "$profile_dir" "$TUNED_USER_DIR/$profile_name"
+        cp -rL "$profile_dir" "$TUNED_USER_DIR/$profile_name"
         echo "Deployed OS profile: $profile_name"
     done
 }
@@ -124,13 +124,13 @@ deploy_provider_profile() {
     fi
     
     # Create provider profile directory
-    sudo mkdir -p "$TUNED_USER_DIR/$provider"
+    mkdir -p "$TUNED_USER_DIR/$provider"
     
     # Copy template and inject include line
     local template="$provider_dir/tuned.conf.template"
     if [ -f "$template" ]; then
         # Insert include= line after [main]
-        sed "s/^\[main\]/[main]\ninclude=$profile/" "$template" | sudo tee "$TUNED_USER_DIR/$provider/tuned.conf" > /dev/null
+        sed "s/^\[main\]/[main]\ninclude=$profile/" "$template" | tee "$TUNED_USER_DIR/$provider/tuned.conf" > /dev/null
         echo "Created provider profile: $provider with include=$profile"
     else
         echo "ERROR: Provider template not found: $template"
@@ -142,8 +142,8 @@ deploy_provider_profile() {
         [ -f "$file" ] || continue
         filename=$(basename "$file")
         [ "$filename" = "tuned.conf.template" ] && continue
-        sudo cp "$file" "$TUNED_USER_DIR/$provider/$filename"
-        sudo chmod +x "$TUNED_USER_DIR/$provider/$filename" 2>/dev/null || true
+        cp "$file" "$TUNED_USER_DIR/$provider/$filename"
+        chmod +x "$TUNED_USER_DIR/$provider/$filename" 2>/dev/null || true
         echo "Copied provider file: $filename"
     done
 }
@@ -151,7 +151,7 @@ deploy_provider_profile() {
 # Write the active profile name for apply_tuned_profile.sh
 write_tuned_profile() {
     local active_profile=$1
-    echo "$active_profile" | sudo tee "$CONFIGMAP_DIR/tuned_profile" > /dev/null
+    echo "$active_profile" | tee "$CONFIGMAP_DIR/tuned_profile" > /dev/null
     echo "Set active tuned profile: $active_profile"
 }
 
