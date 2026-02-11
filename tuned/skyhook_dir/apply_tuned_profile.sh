@@ -29,8 +29,8 @@ TUNED_DIR="/etc/tuned"
 SCRIPTS_DIR="/etc/tuned/scripts"
 
 # ensure tuned directory exists
-sudo mkdir -p "$TUNED_DIR"
-sudo mkdir -p "$SCRIPTS_DIR"
+mkdir -p "$TUNED_DIR"
+mkdir -p "$SCRIPTS_DIR"
 
 # First, deploy all scripts ending with "_script" to the shared scripts directory
 echo "Deploying scripts to $SCRIPTS_DIR..."
@@ -46,8 +46,8 @@ for file in "$CONFIGMAP_DIR"/*_script; do
     fi
     
     # Copy the script and make it executable
-    sudo cp "$file" "$script_path"
-    sudo chmod +x "$script_path"
+    cp "$file" "$script_path"
+    chmod +x "$script_path"
     echo "deployed script: $script_name -> $script_path"
 done
 
@@ -62,10 +62,10 @@ for file in "$CONFIGMAP_DIR"/*; do
     custom_profile_dir="$TUNED_DIR/$profile_name"
 
     # Create a directory for the custom profile if it doesn't exist
-    sudo mkdir -p "$custom_profile_dir"
+    mkdir -p "$custom_profile_dir"
 
     # Copy the file contents as tuned.conf
-    sudo cp "$file" "$custom_profile_dir/tuned.conf"
+    cp "$file" "$custom_profile_dir/tuned.conf"
     echo "created custom tuned profile: $profile_name"
 done
 
@@ -93,7 +93,7 @@ if [ -f "$TUNED_PROFILE_FILE" ]; then
     
     echo "applying tuned profile(s): $tuned_profiles"
     # shellcheck disable=SC2086
-    sudo tuned-adm profile $tuned_profiles
+    tuned-adm profile $tuned_profiles
 else
     echo "WARNING: no tuned_profile file found in $CONFIGMAP_DIR"
 fi
