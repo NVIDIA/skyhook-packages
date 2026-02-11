@@ -1,6 +1,6 @@
 {
     "schema_version": "v1",
-    "package_name": "tuned",
+    "package_name": "nvidia_tuned",
     "package_version": "1.0.0",
     "expected_config_files": ["profile"],
     "modes": {
