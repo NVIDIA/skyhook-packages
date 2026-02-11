@@ -17,9 +17,11 @@
 # limitations under the License.
 
 # Prepares NVIDIA tuned profiles by:
-# 1. Copying common base profiles to /usr/lib/tuned/
-# 2. Selecting the appropriate OS-specific workload profile
-# 3. Setting up the cloud provider profile with dynamic include
+# 1. Reading intent, accelerator, and service from configmap
+# 2. Constructing the profile name as nvidia-{accelerator}-{intent}
+# 3. Copying common base profiles to /usr/lib/tuned/
+# 4. Selecting the appropriate OS-specific workload profiles
+# 5. Setting up the service profile with dynamic include
 
 set -xe
 set -u
@@ -29,9 +31,10 @@ PROFILES_DIR="${SKYHOOK_DIR}/profiles"
 TUNED_SYSTEM_DIR="/usr/lib/tuned"
 TUNED_USER_DIR="/etc/tuned"
 
-# Read profile and provider from configmap
-PROFILE_FILE="$CONFIGMAP_DIR/profile"
-PROVIDER_FILE="$CONFIGMAP_DIR/provider"
+# Read configmap fields
+INTENT_FILE="$CONFIGMAP_DIR/intent"
+ACCELERATOR_FILE="$CONFIGMAP_DIR/accelerator"
+SERVICE_FILE="$CONFIGMAP_DIR/service"
 
 # Detect OS from /etc/os-release
 detect_os() {
@@ -54,10 +57,17 @@ detect_os() {
     fi
 }
 
+# Build the profile name from configmap fields
+build_profile_name() {
+    local intent=$1
+    local accelerator=$2
+    echo "nvidia-${accelerator}-${intent}"
+}
+
 # Copy common base profiles to /usr/lib/tuned/
 deploy_common_profiles() {
     echo "Deploying common profiles to $TUNED_SYSTEM_DIR..."
-    
+
     if [ -d "$PROFILES_DIR/common" ]; then
         for profile_dir in "$PROFILES_DIR/common"/*/; do
             [ -d "$profile_dir" ] || continue
@@ -73,9 +83,9 @@ deploy_common_profiles() {
 # Deploy ALL OS-specific workload profiles
 deploy_os_profiles() {
     echo "Deploying OS profiles to $TUNED_USER_DIR..."
-    
+
     local os_dir=""
-    
+
     # Try OS-specific path first, then fall back to os/common
     if [ -d "$PROFILES_DIR/os/$OS_ID/$VERSION" ]; then
         os_dir="$PROFILES_DIR/os/$OS_ID/$VERSION"
@@ -87,7 +97,7 @@ deploy_os_profiles() {
         echo "ERROR: No OS profiles found in os/$OS_ID/$VERSION/ or os/common/"
         exit 1
     fi
-    
+
     # Copy ALL profiles from the OS directory (dereference symlinks with -L)
     mkdir -p "$TUNED_USER_DIR"
     for profile_dir in "$os_dir"/*/; do
@@ -101,50 +111,51 @@ deploy_os_profiles() {
 # Validate that the requested profile exists
 validate_profile() {
     local profile=$1
-    
+
     if [ ! -d "$TUNED_USER_DIR/$profile" ]; then
-        echo "ERROR: Requested profile '$profile' not found in $TUNED_USER_DIR"
+        echo "ERROR: Constructed profile '$profile' not found in $TUNED_USER_DIR"
+        echo "  intent=$INTENT, accelerator=$ACCELERATOR -> profile=$profile"
         echo "Available profiles:"
         ls -1 "$TUNED_USER_DIR" 2>/dev/null || echo "  (none)"
         exit 1
     fi
-    
+
     echo "Validated profile exists: $profile"
 }
 
-# Deploy cloud provider profile with dynamic include
-deploy_provider_profile() {
-    local provider=$1
+# Deploy service profile with dynamic include
+deploy_service_profile() {
+    local service=$1
     local profile=$2
-    local provider_dir="$PROFILES_DIR/cloud/$provider"
-    
-    if [ ! -d "$provider_dir" ]; then
-        echo "ERROR: Provider '$provider' not found at $provider_dir"
+    local service_dir="$PROFILES_DIR/service/$service"
+
+    if [ ! -d "$service_dir" ]; then
+        echo "ERROR: Service '$service' not found at $service_dir"
         exit 1
     fi
-    
-    # Create provider profile directory
-    mkdir -p "$TUNED_USER_DIR/$provider"
-    
+
+    # Create service profile directory
+    mkdir -p "$TUNED_USER_DIR/$service"
+
     # Copy template and inject include line
-    local template="$provider_dir/tuned.conf.template"
+    local template="$service_dir/tuned.conf.template"
     if [ -f "$template" ]; then
         # Insert include= line after [main]
-        sed "s/^\[main\]/[main]\ninclude=$profile/" "$template" | tee "$TUNED_USER_DIR/$provider/tuned.conf" > /dev/null
-        echo "Created provider profile: $provider with include=$profile"
+        sed "s/^\[main\]/[main]\ninclude=$profile/" "$template" | tee "$TUNED_USER_DIR/$service/tuned.conf" > /dev/null
+        echo "Created service profile: $service with include=$profile"
     else
-        echo "ERROR: Provider template not found: $template"
+        echo "ERROR: Service template not found: $template"
         exit 1
     fi
-    
+
     # Copy any additional files (scripts, etc.)
-    for file in "$provider_dir"/*; do
+    for file in "$service_dir"/*; do
         [ -f "$file" ] || continue
         filename=$(basename "$file")
         [ "$filename" = "tuned.conf.template" ] && continue
-        cp "$file" "$TUNED_USER_DIR/$provider/$filename"
-        chmod +x "$TUNED_USER_DIR/$provider/$filename" 2>/dev/null || true
-        echo "Copied provider file: $filename"
+        cp "$file" "$TUNED_USER_DIR/$service/$filename"
+        chmod +x "$TUNED_USER_DIR/$service/$filename" 2>/dev/null || true
+        echo "Copied service file: $filename"
     done
 }
 
@@ -156,43 +167,55 @@ write_tuned_profile() {
 }
 
 main() {
-    # Detect OS
-    detect_os
-    
-    # Deploy common base profiles to /usr/lib/tuned/
-    deploy_common_profiles
-    
-    # Deploy ALL OS-specific profiles to /etc/tuned/
-    deploy_os_profiles
-    
-    # Read profile from configmap (required)
-    if [ ! -f "$PROFILE_FILE" ]; then
-        echo "ERROR: Profile configmap not found at $PROFILE_FILE"
+    # Read intent from configmap (defaults to performance)
+    if [ -f "$INTENT_FILE" ]; then
+        INTENT=$(cat "$INTENT_FILE" | xargs)
+    fi
+    if [ -z "${INTENT:-}" ]; then
+        INTENT="performance"
+        echo "No intent specified, defaulting to: $INTENT"
+    fi
+
+    # Read accelerator from configmap (required)
+    if [ ! -f "$ACCELERATOR_FILE" ]; then
+        echo "ERROR: accelerator configmap not found at $ACCELERATOR_FILE"
         exit 1
     fi
-    PROFILE=$(cat "$PROFILE_FILE" | xargs)
-    echo "Requested profile: $PROFILE"
-    
-    # Validate the requested profile exists
+    ACCELERATOR=$(cat "$ACCELERATOR_FILE" | xargs)
+
+    # Build profile name from components
+    PROFILE=$(build_profile_name "$INTENT" "$ACCELERATOR")
+    echo "Constructed profile: $PROFILE (intent=$INTENT, accelerator=$ACCELERATOR)"
+
+    # Detect OS
+    detect_os
+
+    # Deploy common base profiles to /usr/lib/tuned/
+    deploy_common_profiles
+
+    # Deploy ALL OS-specific profiles to /etc/tuned/
+    deploy_os_profiles
+
+    # Validate the constructed profile exists
     validate_profile "$PROFILE"
-    
-    # Check if provider is specified (optional)
-    if [ -f "$PROVIDER_FILE" ]; then
-        PROVIDER=$(cat "$PROVIDER_FILE" | xargs)
-        if [ -n "$PROVIDER" ]; then
-            echo "Requested provider: $PROVIDER"
-            deploy_provider_profile "$PROVIDER" "$PROFILE"
-            # Active profile is the provider (which includes the workload profile)
-            write_tuned_profile "$PROVIDER"
+
+    # Check if service is specified (optional)
+    if [ -f "$SERVICE_FILE" ]; then
+        SERVICE=$(cat "$SERVICE_FILE" | xargs)
+        if [ -n "$SERVICE" ]; then
+            echo "Requested service: $SERVICE"
+            deploy_service_profile "$SERVICE" "$PROFILE"
+            # Active profile is the service (which includes the workload profile)
+            write_tuned_profile "$SERVICE"
         else
-            # No provider, use workload profile directly
+            # No service, use workload profile directly
             write_tuned_profile "$PROFILE"
         fi
     else
-        # No provider file, use workload profile directly
+        # No service file, use workload profile directly
         write_tuned_profile "$PROFILE"
     fi
-    
+
     echo "Profile preparation complete"
 }
 
