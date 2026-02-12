@@ -219,6 +219,9 @@ main() {
         verify_tuned_profile_file "$PROFILE"
     fi
 
+    # cleanup the configmaps as tuned expects them to be profiles if they ared tuned_profile
+    rm -f "$CONFIGMAP_DIR/intent" "$CONFIGMAP_DIR/accelerator" "$CONFIGMAP_DIR/service"
+
     echo "Profile verification complete"
 }
 
