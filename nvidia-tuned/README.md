@@ -12,6 +12,26 @@ This package inherits from the base `tuned` package and adds pre-configured tune
 
 The configmap uses an **intent-based** model where you specify **what** you want (intent + accelerator) rather than a specific profile name. The profile name `nvidia-{accelerator}-{intent}` is constructed automatically.
 
+## Supported Operating Systems
+
+This package requires **tuned >= 2.19**. The following operating systems are supported:
+
+| OS | Version | Status | Notes |
+|----|---------|--------|-------|
+| **Ubuntu** | 22.04 (Jammy) | ✅ Tested | Uses OS-specific profiles |
+| **Ubuntu** | 24.04 (Noble) | ✅ Tested | Uses OS-specific profiles |
+| **Debian** | 11 (Bullseye) | ✅ Tested | Uses OS-specific profiles |
+| **Debian** | 12 (Bookworm) | ✅ Tested | Uses OS-specific profiles |
+| **RHEL** | 9 | ✅ Tested | Uses OS-specific profiles |
+| **Other** | Any | ⚠️ Fallback | Falls back to `os/common/` profiles (untested, requires tuned >= 2.19) |
+
+### Notes
+
+- **Tested OS versions**: These have been validated with the package and use OS-specific profile configurations
+- **Fallback behavior**: For untested OS versions, the package will automatically fall back to the `os/common/` profiles. This fallback is **untested** and requires the system to have **tuned >= 2.19** installed
+- **Tuned version requirement**: All systems must have tuned version 2.19 or later. Check your system's tuned version with `tuned --version`
+- **OS detection**: The package automatically detects the OS from `/etc/os-release` and selects the appropriate profiles
+
 ## Directory Structure
 
 ```
@@ -20,15 +40,18 @@ profiles/
 │   ├── nvidia-base/
 │   └── nvidia-acs-disable/
 ├── os/
-│   ├── common/              # Default workload profiles
+│   ├── common/              # Default workload profiles (fallback for untested OS)
 │   │   ├── nvidia-h100-performance/
 │   │   ├── nvidia-h100-inference/
 │   │   └── nvidia-h100-multiNodeTraining/
 │   ├── ubuntu/
 │   │   ├── 22.04/          # Symlinks to os/common/ (override when needed)
-│   │   └── 24.04/
+│   │   └── 24.04/          # Symlinks to os/common/ (override when needed)
+│   ├── debian/
+│   │   ├── 11/             # Mix of symlinks and OS-specific overrides
+│   │   └── 12/             # Symlinks to os/common/ (override when needed)
 │   └── rhel/
-│       └── 9/
+│       └── 9/              # Symlinks to os/common/ (override when needed)
 └── service/
     └── aws/
         ├── tuned.conf.template  # Service template (include= added dynamically)

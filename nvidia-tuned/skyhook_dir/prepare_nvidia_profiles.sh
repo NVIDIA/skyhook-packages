@@ -216,6 +216,9 @@ main() {
         write_tuned_profile "$PROFILE"
     fi
 
+    # cleanup the configmaps as tuned expects them to be profiles if they ared tuned_profile
+    rm -f "$CONFIGMAP_DIR/intent" "$CONFIGMAP_DIR/accelerator" "$CONFIGMAP_DIR/service"
+
     echo "Profile preparation complete"
 }
 
