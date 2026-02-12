@@ -28,7 +28,22 @@
 
 set -e
 
+# Check if PACKAGE_VERSIONS is set
+if [ -z "${PACKAGE_VERSIONS:-}" ]; then
+    echo "ERROR: PACKAGE_VERSIONS environment variable is not set"
+    exit 1
+fi
+
+# Extract the tuned version from the JSON
 latest_version=$(jq -r '.tuned' <<< "${PACKAGE_VERSIONS}")
+
+# Check if the version was found
+if [ -z "${latest_version}" ] || [ "${latest_version}" = "null" ]; then
+    echo "ERROR: Could not find 'tuned' package version in PACKAGE_VERSIONS: ${PACKAGE_VERSIONS}"
+    exit 1
+fi
+
+echo "Found tuned version: ${latest_version}"
 
 # Output the build args
 # If running in GitHub Actions, write to GITHUB_OUTPUT

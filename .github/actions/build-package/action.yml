@@ -94,7 +94,10 @@ runs:
     - name: Run preprocess script
       id: preprocess
       shell: bash
+      env:
+        PACKAGE_VERSIONS: ${{ steps.package-versions.outputs.PACKAGE_VERSIONS }}
       run: |
+        echo "PACKAGE_VERSIONS from previous step: ${PACKAGE_VERSIONS}"
         PREPROCESS_SCRIPT="${{ inputs.package_name }}/preprocess.sh"
         if [ -f "$PREPROCESS_SCRIPT" ]; then
           echo "Running preprocess script: $PREPROCESS_SCRIPT"
