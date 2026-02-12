@@ -18,11 +18,11 @@ This package requires **tuned >= 2.19**. The following operating systems are sup
 
 | OS | Version | Status | Notes |
 |----|---------|--------|-------|
-| **Ubuntu** | 22.04 (Jammy) | ✅ Tested | Uses OS-specific profiles |
-| **Ubuntu** | 24.04 (Noble) | ✅ Tested | Uses OS-specific profiles |
-| **Debian** | 11 (Bullseye) | ✅ Tested | Uses OS-specific profiles |
-| **Debian** | 12 (Bookworm) | ✅ Tested | Uses OS-specific profiles |
-| **RHEL** | 9 | ✅ Tested | Uses OS-specific profiles |
+| **Ubuntu** | 22.04 (Jammy) | ✅ Tested | Uses a min of OS-specific and common profiles |
+| **Ubuntu** | 24.04 (Noble) | ✅ Tested | Uses common profiles |
+| **Debian** | 11 (Bullseye) | ⚠️ verified tuned package version but not fully tested | Uses OS-specific profiles |
+| **Debian** | 12 (Bookworm) | ⚠️ verified tuned package version but not fully tested| Uses common profiles |
+| **RHEL** | 9 | ⚠️ verified tuned package version but not fully tested| Uses common profiles |
 | **Other** | Any | ⚠️ Fallback | Falls back to `os/common/` profiles (untested, requires tuned >= 2.19) |
 
 ### Notes
@@ -101,28 +101,6 @@ aws (active profile)
 
 ## Usage
 
-### Basic Usage (No Service)
-
-```yaml
-apiVersion: skyhook.nvidia.com/v1alpha1
-kind: Skyhook
-metadata:
-  name: nvidia-tuned-example
-spec:
-  nodeSelectors:
-    matchLabels:
-      node-type: gpu-worker
-  packages:
-    nvidia-tuned:
-      image: ghcr.io/nvidia/skyhook-packages/nvidia-tuned:1.0.0
-      version: 1.0.0
-      configMap:
-        intent: performance
-        accelerator: h100
-```
-
-### With Service (e.g., AWS)
-
 ```yaml
 apiVersion: skyhook.nvidia.com/v1alpha1
 kind: Skyhook
@@ -134,8 +112,8 @@ spec:
       nvidia.com/dgx: "true"
   packages:
     nvidia-tuned:
-      image: ghcr.io/nvidia/skyhook-packages/nvidia-tuned:1.0.0
-      version: 1.0.0
+      image: ghcr.io/nvidia/skyhook-packages/nvidia-tuned
+      version: 0.1.0
       interrupt:
         type: reboot
       configInterrupts:
