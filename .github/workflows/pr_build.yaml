@@ -88,17 +88,11 @@ jobs:
       fail-fast: false
       matrix:
         package: ${{ fromJson(needs.detect-changes.outputs.packages) }}
-    
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Log in to the Container registry
-        uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
 
       - name: Get latest tag and short SHA
         id: version
@@ -123,56 +117,16 @@ jobs:
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
           echo "full_tag=${VERSION}-dev.${SHORT_SHA}" >> $GITHUB_OUTPUT
 
-      - name: Run preprocess script
-        id: preprocess
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          PREPROCESS_SCRIPT="${{ matrix.package }}/preprocess.sh"
-          if [ -f "$PREPROCESS_SCRIPT" ]; then
-            echo "Running preprocess script: $PREPROCESS_SCRIPT"
-            chmod +x "$PREPROCESS_SCRIPT"
-            "$PREPROCESS_SCRIPT"
-          else
-            echo "No preprocess script found at $PREPROCESS_SCRIPT"
-            echo "BUILD_ARGS=" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Extract metadata (tags, labels) for Docker
-        id: meta
-        uses: docker/metadata-action@9ec57ed1fcdbf14dcef7dfbe97b2010124a938b7
+      - name: Build and push Docker image
+        uses: ./.github/actions/build-package
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.package }}
+          package_name: ${{ matrix.package }}
           tags: |
             type=raw,value=${{ steps.version.outputs.full_tag }}
-
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v6
-        with:
-          context: ${{ matrix.package }}
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          platforms: linux/amd64,linux/arm64
-          build-args: ${{ steps.preprocess.outputs.BUILD_ARGS }}
-
-      - name: Save image info
-        run: |
-          mkdir -p /tmp/image-info
-          echo "${{ steps.meta.outputs.tags }}" > /tmp/image-info/${{ matrix.package }}.txt
-
-      - name: Upload image info
-        uses: actions/upload-artifact@v4
-        with:
-          name: image-info-${{ matrix.package }}
-          path: /tmp/image-info/${{ matrix.package }}.txt
-          retention-days: 1
+          registry: ${{ env.REGISTRY }}
+          image_name: ${{ env.IMAGE_NAME }}
+          generate_attestation: 'false'
+          save_image_info: 'true'
 
   # Summary job to report status
   build-summary:
