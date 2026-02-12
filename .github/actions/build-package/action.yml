@@ -64,6 +64,7 @@ runs:
 
     - name: Generate package version map
       id: package-versions
+      shell: bash
       run: |
         # Get all tags, extract package/version pairs, find latest for each package
         PACKAGE_VERSIONS=$(git tag -l | \
