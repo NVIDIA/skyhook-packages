@@ -1,0 +1,156 @@
+# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: 'Build Package'
+description: 'Common steps for building and pushing Docker images'
+
+inputs:
+  package_name:
+    required: true
+    description: 'Name of the package to build'
+  tags:
+    required: true
+    description: 'Docker tags to apply (can be multiline YAML string)'
+  registry:
+    required: false
+    default: 'ghcr.io'
+    description: 'Container registry domain'
+  image_name:
+    required: false
+    description: 'Base image name (repository name)'
+  build_args:
+    required: false
+    default: ''
+    description: 'Build arguments from preprocess script'
+  generate_attestation:
+    required: false
+    default: 'false'
+    description: 'Whether to generate artifact attestation'
+  save_image_info:
+    required: false
+    default: 'false'
+    description: 'Whether to save image tags to an artifact (for PR builds)'
+
+outputs:
+  image_tags:
+    description: 'The tags that were applied to the built image'
+    value: ${{ steps.meta.outputs.tags }}
+  image_digest:
+    description: 'The digest of the built image'
+    value: ${{ steps.push.outputs.digest }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Log in to the Container registry
+      uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1
+      with:
+        registry: ${{ inputs.registry }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Generate package version map
+      id: package-versions
+      shell: bash
+      run: |
+        # Get all tags, extract package/version pairs, find latest for each package
+        PACKAGE_VERSIONS=$(git tag -l | \
+          grep -E '^[^/]+/[0-9]+\.[0-9]+\.[0-9]+$' | \
+          sort -t/ -k1,1 -k2,2V | \
+          awk -F/ '
+            {
+              package = $1
+              version = $2
+              packages[package] = version
+            }
+            END {
+              printf "{"
+              first = 1
+              for (package in packages) {
+                if (!first) printf ","
+                printf "\"%s\":\"%s\"", package, packages[package]
+                first = 0
+              }
+              printf "}"
+            }
+          ')
+        
+        echo "PACKAGE_VERSIONS=${PACKAGE_VERSIONS}" >> $GITHUB_OUTPUT
+        echo "Generated package version map: ${PACKAGE_VERSIONS}"
+
+    - name: Run preprocess script
+      id: preprocess
+      shell: bash
+      env:
+        PACKAGE_VERSIONS: ${{ steps.package-versions.outputs.PACKAGE_VERSIONS }}
+      run: |
+        echo "PACKAGE_VERSIONS from previous step: ${PACKAGE_VERSIONS}"
+        PREPROCESS_SCRIPT="${{ inputs.package_name }}/preprocess.sh"
+        if [ -f "$PREPROCESS_SCRIPT" ]; then
+          echo "Running preprocess script: $PREPROCESS_SCRIPT"
+          chmod +x "$PREPROCESS_SCRIPT"
+          "$PREPROCESS_SCRIPT"
+        else
+          echo "No preprocess script found at $PREPROCESS_SCRIPT"
+          echo "BUILD_ARGS=" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Extract metadata (tags, labels) for Docker
+      id: meta
+      uses: docker/metadata-action@9ec57ed1fcdbf14dcef7dfbe97b2010124a938b7
+      with:
+        images: ${{ inputs.registry }}/${{ inputs.image_name }}/${{ inputs.package_name }}
+        tags: ${{ inputs.tags }}
+
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v3
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build and push Docker image
+      id: push
+      uses: docker/build-push-action@v6
+      with:
+        context: ${{ inputs.package_name }}
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        platforms: linux/amd64,linux/arm64
+        build-args: ${{ steps.preprocess.outputs.BUILD_ARGS != '' && steps.preprocess.outputs.BUILD_ARGS || inputs.build_args }}
+
+    - name: Generate artifact attestation
+      if: inputs.generate_attestation == 'true'
+      uses: actions/attest-build-provenance@v2
+      with:
+        subject-name: ${{ inputs.registry }}/${{ inputs.image_name }}/${{ inputs.package_name }}
+        subject-digest: ${{ steps.push.outputs.digest }}
+        push-to-registry: true
+
+    - name: Save image info
+      if: inputs.save_image_info == 'true'
+      shell: bash
+      run: |
+        mkdir -p /tmp/image-info
+        echo "${{ steps.meta.outputs.tags }}" > /tmp/image-info/${{ inputs.package_name }}.txt
+
+    - name: Upload image info
+      if: inputs.save_image_info == 'true'
+      uses: actions/upload-artifact@v4
+      with:
+        name: image-info-${{ inputs.package_name }}
+        path: /tmp/image-info/${{ inputs.package_name }}.txt
+        retention-days: 1

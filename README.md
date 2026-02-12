@@ -96,9 +96,21 @@ Each package follows the standard skyhook package structure:
 ### Key Components
 
 - **`skyhook_dir/`**: Contains scripts used in lifecycle stages and any static files referenced by scripts
-- **`root_dir/`**: Files copied directly to the root filesystem (e.g., `/etc/hosts` configurations)
+  - These are copied onto the host at `${STEP_ROOT}`
+- **`root_dir/`**: Files copied directly to the root filesystem at /
+  - `root_dir/foo/bar.txt` will end up at `/foo/bar.txt`
 - **`config.json`**: Package configuration that must comply with the [skyhook agent schemas v1](https://github.com/NVIDIA/skyhook/tree/main/agent/skyhook-agent/src/skyhook_agent/schemas/v1)
 - **`Dockerfile`**: Copies package components to `/skyhook-package` in the container
+  - Everything in `/skyhook-package` in the container ends up at `${SKYHOOK_DIR}` on the host file system
+
+### Available metadata for scripts when being executed as a part of the skyhook package
+- **`STEP_ROOT`**: An environment variable, the directory where the `skyhook_dir/` folder is copied to
+- **`SKYHOOK_DIR`**: An environment variable, the directory where `/skyhook-package` is copied to
+- **`${SKYHOOK_DIR}/configmaps`**: Directory where all the configmaps for the package will be
+- **`${SKYHOOK_DIR}/node-metadata`**: Directory of metadata related to the node
+  - `${SKYHOOK_DIR}/node-metadata/labels.json`: json of all the labels on the node when the package was scheduled
+  - `${SKYHOOK_DIR}/node-metadata/annotations.json`: json of all the annotations on the node when the package was scheduled
+  - `${SKYHOOKD_DIR}/node-metadata/packages.json`: Packages that have run on the node so far. `{'agent': <version>: 'packages: [{'name': str, 'version': str, 'image': str}, ...]}`
 
 ## Building Packages
 

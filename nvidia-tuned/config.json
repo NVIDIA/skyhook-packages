@@ -1,0 +1,163 @@
+{
+    "schema_version": "v1",
+    "package_name": "nvidia_tuned",
+    "package_version": "1.0.0",
+    "expected_config_files": ["accelerator"],
+    "modes": {
+        "uninstall": [
+            {
+                "name": "uninstall",
+                "path": "uninstall_tuned.sh",
+                "arguments": [],
+                "returncodes": [
+                    0
+                ],
+                "on_host": true,
+                "env": {},
+                "idempotence": true,
+                "upgrade_step": false
+            }
+        ],
+        "uninstall-check": [
+            {
+                "name": "uninstall-check",
+                "path": "uninstall_tuned_check.sh",
+                "arguments": [],
+                "returncodes": [
+                    0
+                ],
+                "on_host": true,
+                "env": {},
+                "idempotence": true,
+                "upgrade_step": false
+            }
+
+        ],
+        "upgrade": [
+            {
+                "name": "upgrade",
+                "path": "install_tuned.sh",
+                "arguments": [],
+                "returncodes": [
+                    0
+                ],
+                "on_host": true,
+                "env": {},
+                "idempotence": true,
+                "upgrade_step": false
+            }
+
+        ],
+        "upgrade-check": [
+            {
+                "name": "upgrade-check",
+                "path": "install_tuned_check.sh",
+                "arguments": [],
+                "returncodes": [
+                    0
+                ],
+                "on_host": true,
+                "env": {},
+                "idempotence": true,
+                "upgrade_step": false
+            }
+
+        ],
+        "apply": [
+            {
+                "name": "apply",
+                "path": "install_tuned.sh",
+                "arguments": [],
+                "returncodes": [
+                    0
+                ],
+                "on_host": true,
+                "env": {},
+                "idempotence": true,
+                "upgrade_step": false
+            }
+
+        ],
+        "apply-check": [
+            {
+                "name": "apply-check",
+                "path": "install_tuned_check.sh",
+                "arguments": [],
+                "returncodes": [
+                    0
+                ],
+                "on_host": true,
+                "env": {},
+                "idempotence": true,
+                "upgrade_step": false
+            }
+
+        ],
+        "config": [
+            {
+                "name": "prepare",
+                "path": "prepare_nvidia_profiles.sh",
+                "arguments": [],
+                "returncodes": [
+                    0
+                ],
+                "on_host": true,
+                "env": {},
+                "idempotence": true,
+                "upgrade_step": false
+            },
+            {
+                "name": "config",
+                "path": "apply_tuned_profile.sh",
+                "arguments": [],
+                "returncodes": [
+                    0
+                ],
+                "on_host": true,
+                "env": {},
+                "idempotence": true,
+                "upgrade_step": false
+            }
+        ],
+        "config-check": [
+            {
+                "name": "prepare-check",
+                "path": "prepare_nvidia_profiles_check.sh",
+                "arguments": [],
+                "returncodes": [
+                    0
+                ],
+                "on_host": true,
+                "env": {},
+                "idempotence": true,
+                "upgrade_step": false
+            },
+            {
+                "name": "config-check",
+                "path": "apply_tuned_profile_check.sh",
+                "arguments": [],
+                "returncodes": [
+                    0
+                ],
+                "on_host": true,
+                "env": {},
+                "idempotence": true,
+                "upgrade_step": false
+            }
+        ],
+        "post-interrupt-check": [
+            {
+                "name": "post-interrupt-check",
+                "path": "post_interrupt_tuned_check.sh",
+                "arguments": [],
+                "returncodes": [
+                    0
+                ],
+                "on_host": true,
+                "env": {},
+                "idempotence": true,
+                "upgrade_step": false
+            }
+        ]
+    }
+}

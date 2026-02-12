@@ -18,6 +18,11 @@
 
 set -x
 
+# Source shared utilities
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=utils.sh
+source "${SCRIPT_DIR}/utils.sh"
+
 CONFIGMAP_DIR="${SKYHOOK_DIR}/configmaps"
 TUNED_DIR="/etc/tuned"
 SCRIPTS_DIR="/etc/tuned/scripts"
@@ -93,20 +98,34 @@ for file in "$CONFIGMAP_DIR"/*; do
     echo "verified custom profile: $base_file"
 done
 
-# verify the main profile is active
+# verify the main profile(s) are active
+# Supports multiple space-separated profiles, e.g., "hpc-compute aws"
 TUNED_PROFILE_FILE="$CONFIGMAP_DIR/tuned_profile"
 if [ ! -f "$TUNED_PROFILE_FILE" ]; then
     echo "WARNING: tuned_profile file missing in $CONFIGMAP_DIR"
 else
-    tuned_profile=$(cat "$TUNED_PROFILE_FILE" | xargs)
-    if tuned-adm list | grep -q "^- $tuned_profile"; then
-        active_profile=$(tuned-adm active | awk -F: '{print $2}' | xargs)
-        if [ "$active_profile" != "$tuned_profile" ]; then
-            echo "ERROR: tuned profile '$tuned_profile' is not active (active: $active_profile)"
+    tuned_profiles=$(cat "$TUNED_PROFILE_FILE" | xargs)
+    
+    # Count the number of profiles
+    # shellcheck disable=SC2086
+    profile_count=$(echo $tuned_profiles | wc -w)
+    
+    # Check tuned version if multiple profiles are specified
+    check_tuned_version_for_multiple_profiles "$profile_count"
+    
+    # Validate each profile exists
+    available_profiles=$(tuned-adm list)
+    for profile in $tuned_profiles; do
+        if ! echo "$available_profiles" | grep -q "^- $profile$"; then
+            echo "ERROR: tuned profile '$profile' not found in tuned-adm list"
             exit 1
         fi
-    else
-        echo "ERROR: tuned profile '$tuned_profile' not found in tuned-adm list"
+    done
+    
+    # Check active profiles match expected profiles
+    active_profile=$(tuned-adm active | awk -F: '{print $2}' | xargs)
+    if [ "$active_profile" != "$tuned_profiles" ]; then
+        echo "ERROR: tuned profile(s) '$tuned_profiles' not active (active: $active_profile)"
         exit 1
     fi
 fi
