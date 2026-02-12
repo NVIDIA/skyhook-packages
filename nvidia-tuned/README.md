@@ -45,7 +45,7 @@ profiles/
 │   │   ├── nvidia-h100-inference/
 │   │   └── nvidia-h100-multiNodeTraining/
 │   ├── ubuntu/
-│   │   ├── 22.04/          # Symlinks to os/common/ (override when needed)
+│   │   ├── 22.04/          # Mix of symlinks and OS-specific overrides
 │   │   └── 24.04/          # Symlinks to os/common/ (override when needed)
 │   ├── debian/
 │   │   ├── 11/             # Mix of symlinks and OS-specific overrides
