@@ -114,7 +114,7 @@ spec:
       node-type: gpu-worker
   packages:
     nvidia-tuned:
-      image: ghcr.io/nvidia/skyhook-packages/nvidia_tuned:1.0.0
+      image: ghcr.io/nvidia/skyhook-packages/nvidia-tuned:1.0.0
       version: 1.0.0
       configMap:
         intent: performance
@@ -134,7 +134,7 @@ spec:
       nvidia.com/dgx: "true"
   packages:
     nvidia-tuned:
-      image: ghcr.io/nvidia/skyhook-packages/nvidia_tuned:1.0.0
+      image: ghcr.io/nvidia/skyhook-packages/nvidia-tuned:1.0.0
       version: 1.0.0
       interrupt:
         type: reboot
