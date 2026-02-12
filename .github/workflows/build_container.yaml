@@ -41,6 +41,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Extract package name from tag
         id: extract
@@ -49,6 +51,7 @@ jobs:
           echo "package_name=${PACKAGE_NAME}" >> $GITHUB_OUTPUT
 
       - name: Build and push Docker image
+        id: build
         uses: ./.github/actions/build-package
         with:
           package_name: ${{ steps.extract.outputs.package_name }}
@@ -58,3 +61,19 @@ jobs:
           image_name: ${{ env.IMAGE_NAME }}
           generate_attestation: 'true'
           save_image_info: 'false'
+
+      - name: Get manifest information
+        id: manifest
+        shell: bash
+        run: |
+          IMAGE_NAME="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ steps.extract.outputs.package_name }}"
+          echo "subject-name=${IMAGE_NAME}" >> $GITHUB_OUTPUT
+          echo "digest=${{ steps.build.outputs.image_digest }}" >> $GITHUB_OUTPUT
+
+      # Generate supply chain security attestation for the multi-platform manifest
+      - name: Generate artifact attestation
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ${{ steps.manifest.outputs.subject-name }}
+          subject-digest: ${{ steps.manifest.outputs.digest }}
+          push-to-registry: true
