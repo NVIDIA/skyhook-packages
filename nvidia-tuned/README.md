@@ -43,7 +43,10 @@ profiles/
 │   ├── common/              # Default workload profiles (fallback for untested OS)
 │   │   ├── nvidia-h100-performance/
 │   │   ├── nvidia-h100-inference/
-│   │   └── nvidia-h100-multiNodeTraining/
+│   │   ├── nvidia-h100-multiNodeTraining/
+│   │   ├── nvidia-gb200-performance/
+│   │   ├── nvidia-gb200-inference/
+│   │   └── nvidia-gb200-multiNodeTraining/
 │   ├── ubuntu/
 │   │   ├── 22.04/          # Mix of symlinks and OS-specific overrides
 │   │   └── 24.04/          # Symlinks to os/common/ (override when needed)
@@ -86,6 +89,9 @@ Examples:
 | `h100` | `performance` | `nvidia-h100-performance` |
 | `h100` | `inference` | `nvidia-h100-inference` |
 | `h100` | `multiNodeTraining` | `nvidia-h100-multiNodeTraining` |
+| `gb200` | `performance` | `nvidia-gb200-performance` |
+| `gb200` | `inference` | `nvidia-gb200-inference` |
+| `gb200` | `multiNodeTraining` | `nvidia-gb200-multiNodeTraining` |
 
 ### Inheritance Chain
 
@@ -151,6 +157,7 @@ spec:
 | Accelerator | Description |
 |-------------|-------------|
 | `h100` | NVIDIA H100 GPU |
+| `gb200` | NVIDIA GB200 GPU |
 
 ### Services (specify in `service`)
 
