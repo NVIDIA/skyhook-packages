@@ -1,0 +1,32 @@
+{
+  "schema_version": "v1",
+  "package_name": "eidos_setup",
+  "package_version": "0.1.0",
+  "expected_config_files": ["service", "accelerator"],
+  "modes": {
+    "apply": [
+      {
+        "name": "apply",
+        "path": "apply.sh",
+        "arguments": [],
+        "returncodes": [0],
+        "on_host": true,
+        "env": {},
+        "idempotence": true,
+        "upgrade_step": false
+      }
+    ],
+    "apply-check": [
+      {
+        "name": "apply-check",
+        "path": "apply_check.sh",
+        "arguments": [],
+        "returncodes": [0],
+        "on_host": true,
+        "env": {},
+        "idempotence": true,
+        "upgrade_step": false
+      }
+    ]
+  }
+}

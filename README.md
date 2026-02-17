@@ -78,6 +78,19 @@ A package for automated installation and configuration of kdump crash dump colle
 - Post-interrupt validation of crash kernel functionality
 - Complete lifecycle management (install, configure, validate, uninstall)
 
+### 5. NVIDIA Setup Package (`nvidia-setup/`)
+A package that applies the same node setup steps as the dgxcloud_aws_eks VMI for selected (service, accelerator) combinations. Runs after the machine is up (Skyhook on a live node).
+
+**Capabilities:**
+- Opinionated defaults per (service, accelerator) with optional env overrides (EIDOS_KERNEL, EIDOS_EFA, EIDOS_LUSTRE)
+- Apply: upgrade, EFA driver, Lustre client, chrony, setup-local-disks (install and run); reboot may be required after apply
+- Apply-check: validate all steps for the selected combination are complete
+- Supported combinations: eks-h100, eks-gb200 (extensible via case + functions in apply.sh / apply_check.sh)
+
+**Key features:**
+- ConfigMap: `service` and `accelerator` only; versions baked in `defaults/*.conf`
+- No OFI, hardening, or system-node-settings; see [nvidia-setup README](./nvidia-setup/README.md)
+
 ## Package Structure
 
 Each package follows the standard skyhook package structure:
@@ -233,6 +246,7 @@ This validation step is crucial as the agent uses JSON schema validation to ensu
 - [Tuning Package](./tuning/README.md) - Usage guide for the tuning package
 - [Tuned Package](./tuned/README.md) - Usage guide for the tuned package
 - [Kdump Package](./kdump/README.md) - Usage guide for the kdump package
+- [NVIDIA Setup Package](./nvidia-setup/README.md) - Node setup (EFA, Lustre, chrony, local disks) per service/accelerator
 - [NVIDIA Skyhook Documentation](https://github.com/NVIDIA/skyhook) - Main skyhook operator documentation
 
 ## Contributing
