@@ -5,3 +5,72 @@ help: ## Display this help.
 .PHONY: license-fmt
 license-fmt: ## adds license header to code.
 	python3 ./scripts/format_license.py --root-dir . --license-file ./LICENSE
+
+##@ Validation
+
+.PHONY: validate-standalone
+validate-standalone: ## Validate a standalone package (not inherited). Usage: make validate-standalone PACKAGE=<package-name>
+	@if [ -z "$(PACKAGE)" ]; then \
+		echo "ERROR: PACKAGE variable is required. Usage: make validate-standalone PACKAGE=<package-name>"; \
+		exit 1; \
+	fi
+	@if [ ! -f "$(PACKAGE)/config.json" ]; then \
+		echo "ERROR: config.json not found for package $(PACKAGE)"; \
+		exit 1; \
+	fi
+	@echo "Validating standalone package: $(PACKAGE)"
+	@CONTAINER_CMD=$$(command -v podman >/dev/null 2>&1 && echo podman || echo docker); \
+	$$CONTAINER_CMD run --rm \
+		--entrypoint python \
+		-v $(PWD):/workspace \
+		-w /workspace \
+		ghcr.io/nvidia/skyhook/agent:latest \
+		/workspace/scripts/validate.py /workspace/$(PACKAGE)/config.json
+
+.PHONY: validate-inherited
+validate-inherited: ## Validate an inherited package (inherits from skyhook-packages). Usage: make validate-inherited PACKAGE=<package-name>
+	@if [ -z "$(PACKAGE)" ]; then \
+		echo "ERROR: PACKAGE variable is required. Usage: make validate-inherited PACKAGE=<package-name>"; \
+		exit 1; \
+	fi
+	@if [ ! -f "$(PACKAGE)/Dockerfile" ]; then \
+		echo "ERROR: Dockerfile not found for package $(PACKAGE)"; \
+		exit 1; \
+	fi
+	@if ! grep -q "^FROM.*skyhook-packages" "$(PACKAGE)/Dockerfile"; then \
+		echo "ERROR: Package $(PACKAGE) does not inherit from skyhook-packages. Use 'make validate-standalone' instead."; \
+		exit 1; \
+	fi
+	@echo "Building container for validation: $(PACKAGE)"
+	@VALIDATION_IMAGE="skyhook-packages-validation-$(PACKAGE):temp"; \
+	EXTRACT_DIR="$(PWD)/.validation-extract-$(PACKAGE)"; \
+	CONTAINER_CMD=$$(command -v podman >/dev/null 2>&1 && echo podman || echo docker); \
+	$$CONTAINER_CMD build --tag $$VALIDATION_IMAGE $(PACKAGE) || { \
+		echo "ERROR: Failed to build container for validation"; \
+		exit 1; \
+	}; \
+	echo "Extracting /skyhook-package from built container..."; \
+	mkdir -p $$EXTRACT_DIR; \
+	$$CONTAINER_CMD create --name validation-extract-temp $$VALIDATION_IMAGE || true; \
+	$$CONTAINER_CMD cp validation-extract-temp:/skyhook-package $$EXTRACT_DIR/ || { \
+		echo "ERROR: Failed to extract /skyhook-package from container"; \
+		$$CONTAINER_CMD rm validation-extract-temp || true; \
+		rm -rf $$EXTRACT_DIR; \
+		exit 1; \
+	}; \
+	$$CONTAINER_CMD rm validation-extract-temp; \
+	echo "Validating package: $(PACKAGE)"; \
+	$$CONTAINER_CMD run --rm \
+		--entrypoint python \
+		-v $$EXTRACT_DIR/skyhook-package:/skyhook-package:ro \
+		-v $(PWD)/scripts/validate.py:/tmp/validate.py:ro \
+		ghcr.io/nvidia/skyhook/agent:latest \
+		/tmp/validate.py /skyhook-package/config.json || { \
+		echo "ERROR: Validation failed for $(PACKAGE)"; \
+		$$CONTAINER_CMD rmi $$VALIDATION_IMAGE || true; \
+		rm -rf $$EXTRACT_DIR; \
+		exit 1; \
+	}; \
+	echo "✓ Validation passed for $(PACKAGE)"; \
+	$$CONTAINER_CMD rmi $$VALIDATION_IMAGE || true; \
+	rm -rf $$EXTRACT_DIR
