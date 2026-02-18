@@ -37,6 +37,79 @@ except ImportError as e:
     sys.exit(1)
 
 
+def is_executable(file_path: str) -> bool:
+    """
+    Check if a file has the executable bit set.
+    
+    Args:
+        file_path: Path to the file to check
+        
+    Returns:
+        True if the file is executable, False otherwise
+    """
+    if not os.path.exists(file_path):
+        return False
+    return os.access(file_path, os.X_OK)
+
+
+def validate_executable_bits(config_path: str, config_data: dict, step_root_dir: str) -> bool:
+    """
+    Validate that all scripts referenced in config.json and all .sh files in the package
+    have the executable bit set.
+    
+    Args:
+        config_path: Path to the config.json file
+        config_data: Parsed config.json data
+        step_root_dir: Root directory where scripts are located (skyhook_dir)
+        
+    Returns:
+        True if all scripts are executable, False otherwise
+    """
+    errors = []
+    config_dir = os.path.dirname(os.path.abspath(config_path))
+    
+    # Collect all script paths referenced in config.json
+    referenced_scripts = set()
+    if 'modes' in config_data:
+        for mode_name, steps in config_data['modes'].items():
+            if isinstance(steps, list):
+                for step in steps:
+                    if isinstance(step, dict) and 'path' in step:
+                        script_path = step['path']
+                        referenced_scripts.add(script_path)
+    
+    # Check executable bits for scripts referenced in config.json
+    for script_path in referenced_scripts:
+        # Script paths in config.json are relative to step_root_dir (skyhook_dir)
+        full_script_path = os.path.join(step_root_dir, script_path)
+        if os.path.exists(full_script_path):
+            if not is_executable(full_script_path):
+                errors.append(f"Script referenced in config.json is not executable: {script_path} (full path: {full_script_path})")
+        # Note: We don't error if the file doesn't exist here, as that's checked by config.load()
+    
+    # Find all .sh files in the package directory and check if they're executable
+    package_dir = config_dir
+    for root, dirs, files in os.walk(package_dir):
+        # Skip hidden directories and common build artifacts
+        dirs[:] = [d for d in dirs if not d.startswith('.')]
+        
+        for file in files:
+            if file.endswith('.sh'):
+                file_path = os.path.join(root, file)
+                if not is_executable(file_path):
+                    # Make path relative to package_dir for cleaner error messages
+                    rel_path = os.path.relpath(file_path, package_dir)
+                    errors.append(f"Shell script is not executable: {rel_path} (full path: {file_path})")
+    
+    if errors:
+        print("ERROR: Executable bit validation failed:", file=sys.stderr)
+        for error in errors:
+            print(f"  {error}", file=sys.stderr)
+        return False
+    
+    return True
+
+
 def validate_config_file(config_path: str) -> bool:
     """
     Validate a config.json file against the skyhook-agent schema and verify step files exist.
@@ -81,9 +154,15 @@ def validate_config_file(config_path: str) -> bool:
         # config.load() validates the schema, migrates if needed, and validates step files exist
         config.load(config_data, step_root_dir=step_root_dir)
         
+        print(f"✓ Schema validation: passed")
+        print(f"✓ Step files validation: passed")
+        
+        # Validate executable bits for scripts
+        if not validate_executable_bits(config_path, config_data, step_root_dir):
+            return False
+        
+        print(f"✓ Executable bit validation: passed")
         print(f"✓ Validation successful: {config_path}")
-        print(f"  Schema validation: passed")
-        print(f"  Step files validation: passed")
         return True
         
     except ValidationError as e:
