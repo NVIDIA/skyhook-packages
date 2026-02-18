@@ -22,6 +22,27 @@ test: test-deps ## Run Docker-based tests (in parallel)
 		./venv/bin/pytest tests/integration/ -n auto -v --durations=10 --durations-min=10.0; \
 	fi
 
+.PHONY: test-package
+test-package: test-deps ## Run tests for a specific package. Usage: make test-package PACKAGE=<package-name>
+	@if [ -z "$(PACKAGE)" ]; then \
+		echo "ERROR: PACKAGE variable is required. Usage: make test-package PACKAGE=<package-name>"; \
+		exit 1; \
+	fi
+	@# Convert package name from hyphen to underscore for test directory (e.g., nvidia-setup -> nvidia_setup)
+	@TEST_PACKAGE=$$(echo "$(PACKAGE)" | tr '-' '_'); \
+	TEST_DIR="tests/integration/$$TEST_PACKAGE"; \
+	if [ ! -d "$$TEST_DIR" ]; then \
+		echo "WARNING: Test directory $$TEST_DIR not found for package $(PACKAGE). Skipping tests."; \
+		exit 0; \
+	fi; \
+	echo "Running tests for package: $(PACKAGE) (test directory: $$TEST_DIR)"; \
+	if [ -n "$$TEST_WORKERS" ]; then \
+		./venv/bin/pytest $$TEST_DIR -n $$TEST_WORKERS -v --durations=10 --durations-min=10.0; \
+	else \
+		./venv/bin/pytest $$TEST_DIR -n auto -v --durations=10 --durations-min=10.0; \
+	fi
+
+
 ##@ Validation
 
 .PHONY: validate-standalone

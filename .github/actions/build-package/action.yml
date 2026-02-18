@@ -112,13 +112,15 @@ runs:
           echo "BUILD_ARGS=" >> $GITHUB_OUTPUT
         fi
 
-    - name: Check if config.json exists and changed
+    - name: Check if package changed and config.json exists
       id: check-config
       shell: bash
       run: |
         CONFIG_FILE="${{ inputs.package_name }}/config.json"
         DOCKERFILE="${{ inputs.package_name }}/Dockerfile"
+        PACKAGE_DIR="${{ inputs.package_name }}/"
         
+        # Check if config.json exists
         if [ ! -f "$CONFIG_FILE" ]; then
           # Check if Dockerfile exists and has a FROM that references a skyhook-packages image
           if [ -f "$DOCKERFILE" ]; then
@@ -127,27 +129,37 @@ runs:
               echo "config_exists=false" >> $GITHUB_OUTPUT
               echo "config_changed=false" >> $GITHUB_OUTPUT
               echo "No config.json found, but Dockerfile inherits from skyhook-packages image - validation skipped"
-              exit 0
+            else
+              # If we get here, config.json is missing and it's not inheriting from skyhook-packages
+              echo "ERROR: config.json is required for package ${{ inputs.package_name }}" >&2
+              echo "Package must have a config.json file unless it inherits from another skyhook-packages image." >&2
+              echo "Current Dockerfile FROM line:" >&2
+              grep "^FROM" "$DOCKERFILE" >&2 || echo "  (no FROM line found)" >&2
+              exit 1
             fi
+          else
+            echo "ERROR: config.json is required for package ${{ inputs.package_name }}" >&2
+            exit 1
           fi
-          
-          # If we get here, config.json is missing and it's not inheriting from skyhook-packages
-          echo "ERROR: config.json is required for package ${{ inputs.package_name }}" >&2
-          echo "Package must have a config.json file unless it inherits from another skyhook-packages image." >&2
-          if [ -f "$DOCKERFILE" ]; then
-            echo "Current Dockerfile FROM line:" >&2
-            grep "^FROM" "$DOCKERFILE" >&2 || echo "  (no FROM line found)" >&2
-          fi
-          exit 1
+        else
+          echo "config_exists=true" >> $GITHUB_OUTPUT
         fi
         
-        echo "config_exists=true" >> $GITHUB_OUTPUT
-        
-        # For PR builds, check if config.json was changed
-        # For tag builds (push events), always validate
+        # Check if any file in the package changed (for testing)
+        # For PR builds, check if any file in the package was changed
+        # For tag builds (push events), always run tests
         if [ "${{ github.event_name }}" == "pull_request" ]; then
-          # Check if config.json was changed in this PR
-          if git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -q "^${CONFIG_FILE}$"; then
+          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
+          if echo "$CHANGED_FILES" | grep -q "^${PACKAGE_DIR}"; then
+            echo "package_changed=true" >> $GITHUB_OUTPUT
+            echo "Package ${{ inputs.package_name }} has changed files, tests will run"
+          else
+            echo "package_changed=false" >> $GITHUB_OUTPUT
+            echo "No files changed in package ${{ inputs.package_name }}, skipping tests"
+          fi
+          
+          # Check if config.json was changed (for validation)
+          if echo "$CHANGED_FILES" | grep -q "^${CONFIG_FILE}$"; then
             echo "config_changed=true" >> $GITHUB_OUTPUT
             echo "config.json was changed in this PR, validation required"
           else
@@ -155,9 +167,15 @@ runs:
             echo "config.json was not changed in this PR, skipping validation"
           fi
         else
-          # For tag builds or other push events, always validate
-          echo "config_changed=true" >> $GITHUB_OUTPUT
-          echo "Tag build detected, validating config.json"
+          # For tag builds or other push events, always run tests and validate
+          echo "package_changed=true" >> $GITHUB_OUTPUT
+          echo "Tag build detected, tests will run"
+          if [ -f "$CONFIG_FILE" ]; then
+            echo "config_changed=true" >> $GITHUB_OUTPUT
+            echo "Tag build detected, validating config.json"
+          else
+            echo "config_changed=false" >> $GITHUB_OUTPUT
+          fi
         fi
 
     - name: Check if package inherits from skyhook-packages
@@ -186,6 +204,23 @@ runs:
       shell: bash
       run: |
         make validate-inherited PACKAGE="${{ inputs.package_name }}"
+
+    - name: Verify Docker is available for tests
+      if: steps.check-config.outputs.package_changed == 'true'
+      shell: bash
+      run: |
+        # Verify Docker daemon is running and accessible
+        docker info > /dev/null 2>&1 || {
+          echo "ERROR: Docker daemon is not accessible. Tests require Docker to run containers." >&2
+          exit 1
+        }
+        echo "Docker is available and ready for tests"
+
+    - name: Run tests for package
+      if: steps.check-config.outputs.package_changed == 'true'
+      shell: bash
+      run: |
+        make test-package PACKAGE="${{ inputs.package_name }}"
 
     - name: Extract metadata (tags, labels) for Docker
       id: meta
