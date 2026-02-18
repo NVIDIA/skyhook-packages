@@ -43,6 +43,10 @@ inputs:
     required: false
     default: 'false'
     description: 'Whether to save image tags to an artifact (for PR builds)'
+  skyhook_agent_image:
+    required: false
+    default: 'ghcr.io/nvidia/skyhook/agent:latest'
+    description: 'Skyhook agent container image to use for validation'
 
 outputs:
   image_tags:
@@ -107,6 +111,81 @@ runs:
           echo "No preprocess script found at $PREPROCESS_SCRIPT"
           echo "BUILD_ARGS=" >> $GITHUB_OUTPUT
         fi
+
+    - name: Check if config.json exists and changed
+      id: check-config
+      shell: bash
+      run: |
+        CONFIG_FILE="${{ inputs.package_name }}/config.json"
+        DOCKERFILE="${{ inputs.package_name }}/Dockerfile"
+        
+        if [ ! -f "$CONFIG_FILE" ]; then
+          # Check if Dockerfile exists and has a FROM that references a skyhook-packages image
+          if [ -f "$DOCKERFILE" ]; then
+            # Check if FROM line contains "skyhook-packages" (indicating it inherits from another package)
+            if grep -q "^FROM.*skyhook-packages" "$DOCKERFILE"; then
+              echo "config_exists=false" >> $GITHUB_OUTPUT
+              echo "config_changed=false" >> $GITHUB_OUTPUT
+              echo "No config.json found, but Dockerfile inherits from skyhook-packages image - validation skipped"
+              exit 0
+            fi
+          fi
+          
+          # If we get here, config.json is missing and it's not inheriting from skyhook-packages
+          echo "ERROR: config.json is required for package ${{ inputs.package_name }}" >&2
+          echo "Package must have a config.json file unless it inherits from another skyhook-packages image." >&2
+          if [ -f "$DOCKERFILE" ]; then
+            echo "Current Dockerfile FROM line:" >&2
+            grep "^FROM" "$DOCKERFILE" >&2 || echo "  (no FROM line found)" >&2
+          fi
+          exit 1
+        fi
+        
+        echo "config_exists=true" >> $GITHUB_OUTPUT
+        
+        # For PR builds, check if config.json was changed
+        # For tag builds (push events), always validate
+        if [ "${{ github.event_name }}" == "pull_request" ]; then
+          # Check if config.json was changed in this PR
+          if git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -q "^${CONFIG_FILE}$"; then
+            echo "config_changed=true" >> $GITHUB_OUTPUT
+            echo "config.json was changed in this PR, validation required"
+          else
+            echo "config_changed=false" >> $GITHUB_OUTPUT
+            echo "config.json was not changed in this PR, skipping validation"
+          fi
+        else
+          # For tag builds or other push events, always validate
+          echo "config_changed=true" >> $GITHUB_OUTPUT
+          echo "Tag build detected, validating config.json"
+        fi
+
+    - name: Check if package inherits from skyhook-packages
+      id: check-inheritance
+      if: steps.check-config.outputs.config_exists == 'true' && steps.check-config.outputs.config_changed == 'true'
+      shell: bash
+      run: |
+        DOCKERFILE="${{ inputs.package_name }}/Dockerfile"
+        
+        if [ -f "$DOCKERFILE" ] && grep -q "^FROM.*skyhook-packages" "$DOCKERFILE"; then
+          echo "inherits_from_skyhook_packages=true" >> $GITHUB_OUTPUT
+          echo "Package inherits from skyhook-packages image - will use validate-inherited target"
+        else
+          echo "inherits_from_skyhook_packages=false" >> $GITHUB_OUTPUT
+          echo "Package is standalone - will use validate-standalone target"
+        fi
+
+    - name: Validate config.json (standalone packages)
+      if: steps.check-config.outputs.config_exists == 'true' && steps.check-config.outputs.config_changed == 'true' && steps.check-inheritance.outputs.inherits_from_skyhook_packages == 'false'
+      shell: bash
+      run: |
+        make validate-standalone PACKAGE="${{ inputs.package_name }}"
+
+    - name: Validate config.json (inherited packages)
+      if: steps.check-config.outputs.config_exists == 'true' && steps.check-config.outputs.config_changed == 'true' && steps.check-inheritance.outputs.inherits_from_skyhook_packages == 'true'
+      shell: bash
+      run: |
+        make validate-inherited PACKAGE="${{ inputs.package_name }}"
 
     - name: Extract metadata (tags, labels) for Docker
       id: meta

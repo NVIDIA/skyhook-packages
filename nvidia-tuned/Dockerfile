@@ -18,3 +18,6 @@ ARG TUNED_VERSION=1.2.0
 FROM ghcr.io/nvidia/skyhook-packages/tuned:${TUNED_VERSION}
 
 COPY ./ /skyhook-package
+
+# Work around until tuned can be tagged and fixed
+RUN find /skyhook-package -name "*.sh" -type f -exec chmod +x {} \;
