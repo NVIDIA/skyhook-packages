@@ -1,8 +1,8 @@
 #!/bin/bash
 set -e
 CONFIGMAP_DIR="${SKYHOOK_DIR}/configmaps"
-DEFAULTS_DIR="${SKYHOOK_DIR}/defaults"
-STEPS_CHECK_DIR="${SKYHOOK_DIR}/steps_check"
+DEFAULTS_DIR="${SKYHOOK_DIR}/skyhook_dir/defaults"
+STEPS_CHECK_DIR="${SKYHOOK_DIR}/skyhook_dir/steps_check"
 
 SERVICE=$(cat "${CONFIGMAP_DIR}/service")
 ACCELERATOR=$(cat "${CONFIGMAP_DIR}/accelerator")

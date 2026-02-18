@@ -6,6 +6,22 @@ help: ## Display this help.
 license-fmt: ## adds license header to code.
 	python3 ./scripts/format_license.py --root-dir . --license-file ./LICENSE
 
+.PHONY: test-deps
+test-deps: ## Install Python test dependencies
+	@if [ ! -d "venv" ]; then \
+		echo "Creating virtual environment..."; \
+		python3 -m venv venv; \
+	fi
+	./venv/bin/pip install -r tests/requirements.txt
+
+.PHONY: test
+test: test-deps ## Run Docker-based tests (in parallel)
+	@if [ -n "$$TEST_WORKERS" ]; then \
+		./venv/bin/pytest tests/integration/ -n $$TEST_WORKERS -v --durations=10 --durations-min=10.0; \
+	else \
+		./venv/bin/pytest tests/integration/ -n auto -v --durations=10 --durations-min=10.0; \
+	fi
+
 ##@ Validation
 
 .PHONY: validate-standalone

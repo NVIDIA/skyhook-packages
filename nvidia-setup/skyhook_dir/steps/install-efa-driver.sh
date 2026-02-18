@@ -6,4 +6,8 @@ cd "$(mktemp -d)"
 curl -sSfO "https://efa-installer.amazonaws.com/aws-efa-installer-${EFA_VERSION}.tar.gz"
 tar -xf "aws-efa-installer-${EFA_VERSION}.tar.gz"
 cd aws-efa-installer
-./efa_installer.sh -y
+if [ -z "${SKIP_SYSTEM_OPERATIONS:-}" ]; then
+  ./efa_installer.sh -y
+else
+  echo "Skipping efa install for test environment"
+fi

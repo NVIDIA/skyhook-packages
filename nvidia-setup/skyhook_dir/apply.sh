@@ -1,8 +1,8 @@
 #!/bin/bash
 set -e
 CONFIGMAP_DIR="${SKYHOOK_DIR}/configmaps"
-DEFAULTS_DIR="${SKYHOOK_DIR}/defaults"
-STEPS_DIR="${SKYHOOK_DIR}/steps"
+DEFAULTS_DIR="${SKYHOOK_DIR}/skyhook_dir/defaults"
+STEPS_DIR="${SKYHOOK_DIR}/skyhook_dir/steps"
 
 SERVICE=$(cat "${CONFIGMAP_DIR}/service")
 ACCELERATOR=$(cat "${CONFIGMAP_DIR}/accelerator")
@@ -15,14 +15,14 @@ if [ ! -f "${DEFAULTS_FILE}" ]; then
   exit 1
 fi
 
-# Load defaults (kernel=, lustre=, efa=)
+# Load defaults (KERNEL=, LUSTRE=, EFA=)
 # shellcheck source=/dev/null
 . "${DEFAULTS_FILE}"
 
 # Env overrides
-[ -n "${EIDOS_KERNEL:-}" ] && KERNEL="${EIDOS_KERNEL}"
-[ -n "${EIDOS_LUSTRE:-}" ] && LUSTRE="${EIDOS_LUSTRE}"
-[ -n "${EIDOS_EFA:-}" ] && EFA="${EIDOS_EFA}"
+[ -n "${NVIDIA_KERNEL:-}" ] && KERNEL="${NVIDIA_KERNEL}"
+[ -n "${NVIDIA_LUSTRE:-}" ] && LUSTRE="${NVIDIA_LUSTRE}"
+[ -n "${NVIDIA_EFA:-}" ] && EFA="${NVIDIA_EFA}"
 
 export KERNEL LUSTRE EFA
 # SKYHOOK_DIR is set by the agent; ensure step scripts see it
