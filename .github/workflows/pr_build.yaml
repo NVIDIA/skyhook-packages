@@ -79,9 +79,154 @@ jobs:
             echo "No package changes detected"
           fi
 
-  # Second job: build changed packages
-  build:
+  # Second job: validate changed packages
+  validate:
     needs: detect-changes
+    if: needs.detect-changes.outputs.has_changes == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package: ${{ fromJson(needs.detect-changes.outputs.packages) }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check if package changed and config.json exists
+        id: check-config
+        shell: bash
+        run: |
+          CONFIG_FILE="${{ matrix.package }}/config.json"
+          DOCKERFILE="${{ matrix.package }}/Dockerfile"
+          PACKAGE_DIR="${{ matrix.package }}/"
+          
+          # Check if config.json exists
+          if [ ! -f "$CONFIG_FILE" ]; then
+            # Check if Dockerfile exists and has a FROM that references a skyhook-packages image
+            if [ -f "$DOCKERFILE" ]; then
+              # Check if FROM line contains "skyhook-packages" (indicating it inherits from another package)
+              if grep -q "^FROM.*skyhook-packages" "$DOCKERFILE"; then
+                echo "config_exists=false" >> $GITHUB_OUTPUT
+                echo "config_changed=false" >> $GITHUB_OUTPUT
+                echo "No config.json found, but Dockerfile inherits from skyhook-packages image - validation skipped"
+              else
+                # If we get here, config.json is missing and it's not inheriting from skyhook-packages
+                echo "ERROR: config.json is required for package ${{ matrix.package }}" >&2
+                echo "Package must have a config.json file unless it inherits from another skyhook-packages image." >&2
+                echo "Current Dockerfile FROM line:" >&2
+                grep "^FROM" "$DOCKERFILE" >&2 || echo "  (no FROM line found)" >&2
+                exit 1
+              fi
+            else
+              echo "ERROR: config.json is required for package ${{ matrix.package }}" >&2
+              exit 1
+            fi
+          else
+            echo "config_exists=true" >> $GITHUB_OUTPUT
+          fi
+          
+          # Check if any file in the package changed (for validation)
+          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
+          if echo "$CHANGED_FILES" | grep -q "^${PACKAGE_DIR}"; then
+            echo "package_changed=true" >> $GITHUB_OUTPUT
+            echo "Package ${{ matrix.package }} has changed files, validation will run if config.json exists"
+            # If config.json exists, we should validate it when package changes
+            if [ -f "$CONFIG_FILE" ]; then
+              echo "config_changed=true" >> $GITHUB_OUTPUT
+              echo "Package changed and config.json exists, validation required"
+            else
+              echo "config_changed=false" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "package_changed=false" >> $GITHUB_OUTPUT
+            echo "config_changed=false" >> $GITHUB_OUTPUT
+            echo "No files changed in package ${{ matrix.package }}, skipping validation"
+          fi
+
+      - name: Check if package inherits from skyhook-packages
+        id: check-inheritance
+        if: steps.check-config.outputs.config_exists == 'true' && steps.check-config.outputs.package_changed == 'true'
+        shell: bash
+        run: |
+          DOCKERFILE="${{ matrix.package }}/Dockerfile"
+          
+          if [ -f "$DOCKERFILE" ] && grep -q "^FROM.*skyhook-packages" "$DOCKERFILE"; then
+            echo "inherits_from_skyhook_packages=true" >> $GITHUB_OUTPUT
+            echo "Package inherits from skyhook-packages image - will use validate-inherited target"
+          else
+            echo "inherits_from_skyhook_packages=false" >> $GITHUB_OUTPUT
+            echo "Package is standalone - will use validate-standalone target"
+          fi
+
+      - name: Validate config.json (standalone packages)
+        if: steps.check-config.outputs.config_exists == 'true' && steps.check-config.outputs.package_changed == 'true' && steps.check-inheritance.outputs.inherits_from_skyhook_packages == 'false'
+        shell: bash
+        run: |
+          make validate-standalone PACKAGE="${{ matrix.package }}"
+
+      - name: Validate config.json (inherited packages)
+        if: steps.check-config.outputs.config_exists == 'true' && steps.check-config.outputs.package_changed == 'true' && steps.check-inheritance.outputs.inherits_from_skyhook_packages == 'true'
+        shell: bash
+        run: |
+          make validate-inherited PACKAGE="${{ matrix.package }}"
+
+  # Third job: test changed packages
+  test:
+    needs: [detect-changes, validate]
+    if: needs.detect-changes.outputs.has_changes == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package: ${{ fromJson(needs.detect-changes.outputs.packages) }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check if package changed
+        id: check-package
+        shell: bash
+        run: |
+          PACKAGE_DIR="${{ matrix.package }}/"
+          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
+          if echo "$CHANGED_FILES" | grep -q "^${PACKAGE_DIR}"; then
+            echo "package_changed=true" >> $GITHUB_OUTPUT
+            echo "Package ${{ matrix.package }} has changed files, tests will run"
+          else
+            echo "package_changed=false" >> $GITHUB_OUTPUT
+            echo "No files changed in package ${{ matrix.package }}, skipping tests"
+          fi
+
+      - name: Install test dependencies
+        if: steps.check-package.outputs.package_changed == 'true'
+        shell: bash
+        run: |
+          make test-deps
+
+      - name: Verify Docker is available for tests
+        if: steps.check-package.outputs.package_changed == 'true'
+        shell: bash
+        run: |
+          # Verify Docker daemon is running and accessible
+          docker info > /dev/null 2>&1 || {
+            echo "ERROR: Docker daemon is not accessible. Tests require Docker to run containers." >&2
+            exit 1
+          }
+          echo "Docker is available and ready for tests"
+
+      - name: Run tests for package
+        if: steps.check-package.outputs.package_changed == 'true'
+        shell: bash
+        run: |
+          make test-package PACKAGE="${{ matrix.package }}"
+
+  # Fourth job: build changed packages
+  build:
+    needs: [detect-changes, validate, test]
     if: needs.detect-changes.outputs.has_changes == 'true'
     runs-on: ubuntu-latest
     strategy:
@@ -130,7 +275,7 @@ jobs:
 
   # Summary job to report status
   build-summary:
-    needs: [detect-changes, build]
+    needs: [detect-changes, validate, test, build]
     if: always()
     runs-on: ubuntu-latest
     steps:
