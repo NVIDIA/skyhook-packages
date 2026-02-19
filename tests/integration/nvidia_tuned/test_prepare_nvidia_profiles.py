@@ -58,20 +58,26 @@ def install_tuned_in_container(runner: DockerTestRunner, base_image: str):
         raise ValueError(f"Unknown base image: {base_image}")
 
 
+def _matches_any(text: str, *patterns: str) -> bool:
+    """Check if any of the patterns are contained in the text."""
+    return any(pattern in text for pattern in patterns)
+
+
 def verify_tuned_version(runner: DockerTestRunner, base_image: str):
     """Verify tuned version meets OS-specific requirement."""
     # Determine required version based on OS
-    # These dont have the calc_iso_cpus function in their profile so only need 2.15
-    if "ubuntu:22.04" in base_image or "debian:11" in base_image:
-        required_major = 2
-        required_minor = 15
-    elif "ubuntu:24.04" in base_image or "debian:12" in base_image or "rocky:9" in base_image or "rockylinux:9" in base_image:
-        required_major = 2
-        required_minor = 19
-    else:
-        # Default to 2.19 for unknown OS
-        required_major = 2
-        required_minor = 19
+    
+    match base_image:
+        # These don't have the calc_iso_cpus function in their profile so only need 2.15
+        case img if _matches_any(img, "ubuntu:22.04", "debian:11"):
+            # OS versions requiring tuned >= 2.15
+            required_major, required_minor = (2, 15)
+        case img if _matches_any(img, "ubuntu:24.04", "debian:12", "rocky:9", "rockylinux:9"):
+            # OS versions requiring tuned >= 2.19
+            required_major, required_minor = (2, 19)
+        case _:
+            # Default to 2.19 for unknown OS
+            required_major, required_minor = (2, 19)
     
     # Ensure container is initialized
     if runner.container is None:
