@@ -367,13 +367,13 @@ def test_prepare_nvidia_profiles_aws_grub_config(base_image):
         
         # Verify grub config file content
         grub_config_content = runner.get_file_contents("/etc/default/grub.d/99_tuned.cfg")
-        assert "/etc/tuned/bootcmdline" in grub_config_content, \
-            "Grub config should reference /etc/tuned/bootcmdline"
         assert "GRUB_CMDLINE_LINUX_DEFAULT" in grub_config_content, \
             "Grub config should set GRUB_CMDLINE_LINUX_DEFAULT"
-        # The implementation sources the bootcmdline file and uses TUNED_BOOT_CMDLINE
-        assert "TUNED_BOOT_CMDLINE" in grub_config_content, \
-            "Grub config should use TUNED_BOOT_CMDLINE variable"
+        # The file should contain the actual boot parameters (static, not a variable reference)
+        assert "iommu=pt" in grub_config_content, \
+            "Grub config should contain the actual boot parameters (iommu=pt)"
+        assert "hugepages=8192" in grub_config_content, \
+            "Grub config should contain the actual boot parameters (hugepages=8192)"
         
     finally:
         runner.cleanup()
