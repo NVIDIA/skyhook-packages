@@ -40,7 +40,7 @@ cat <<EOF > "$GRUB_CONFIG_FILE"
 # Source the tuned bootcmdline
 if [ -f "$BOOTCMDLINE_FILE" ]; then
     . $BOOTCMDLINE_FILE
-    GRUB_CMDLINE_LINUX_DEFAULT=" ${TUNED_BOOT_CMDLINE}"
+    GRUB_CMDLINE_LINUX_DEFAULT=" \${TUNED_BOOT_CMDLINE}"
 fi
 EOF
 

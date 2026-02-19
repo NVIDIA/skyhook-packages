@@ -354,6 +354,10 @@ def test_prepare_nvidia_profiles_aws_grub_config(base_image):
             ["bash", "-c", "mkdir -p /etc/tuned && echo 'TUNED_BOOT_CMDLINE=\"iommu=pt hugepages=8192\"' > /etc/tuned/bootcmdline"],
             workdir="/"
         )
+
+        bootcmdline_content = runner.get_file_contents("/etc/tuned/bootcmdline")
+        assert "TUNED_BOOT_CMDLINE=\"iommu=pt hugepages=8192\"" in bootcmdline_content, \
+            "Bootcmdline file should contain the actual boot parameters (iommu=pt hugepages=8192)"
         
         # Run the AWS bootloader script (skip update-grub if it fails)
         bootloader_result = runner.container.exec_run(
@@ -366,14 +370,9 @@ def test_prepare_nvidia_profiles_aws_grub_config(base_image):
         assert grub_config_exists, "Grub config file 99_tuned.cfg was not created"
         
         # Verify grub config file content
-        grub_config_content = runner.get_file_contents("/etc/default/grub.d/99_tuned.cfg")
-        assert "GRUB_CMDLINE_LINUX_DEFAULT" in grub_config_content, \
-            "Grub config should set GRUB_CMDLINE_LINUX_DEFAULT"
-        # The file should contain the actual boot parameters (static, not a variable reference)
-        assert "iommu=pt" in grub_config_content, \
-            "Grub config should contain the actual boot parameters (iommu=pt)"
-        assert "hugepages=8192" in grub_config_content, \
-            "Grub config should contain the actual boot parameters (hugepages=8192)"
+        grub_config_content = runner.container.exec_run(["bash", "-c", ". /etc/default/grub.d/99_tuned.cfg && echo $GRUB_CMDLINE_LINUX_DEFAULT"], workdir="/").output.decode('utf-8', errors='replace')
+        assert_output_contains(grub_config_content, "iommu=pt")
+        assert_output_contains(grub_config_content, "hugepages=8192")
         
     finally:
         runner.cleanup()
