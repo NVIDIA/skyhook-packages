@@ -3,7 +3,7 @@
 Tests for nvidia-tuned prepare_nvidia_profiles.sh script.
 
 Tests verify:
-- Tuned version >= 2.19 is installed
+- Tuned version meets OS-specific requirements (>= 2.15 for Ubuntu 22.04/Debian 11, >= 2.19 for others)
 - prepare_nvidia_profiles does the right thing for all combinations of:
   - accelerator (h100, gb200)
   - intent (performance, inference, multiNodeTraining)
@@ -58,8 +58,21 @@ def install_tuned_in_container(runner: DockerTestRunner, base_image: str):
         raise ValueError(f"Unknown base image: {base_image}")
 
 
-def verify_tuned_version(runner: DockerTestRunner):
-    """Verify tuned version is >= 2.19."""
+def verify_tuned_version(runner: DockerTestRunner, base_image: str):
+    """Verify tuned version meets OS-specific requirement."""
+    # Determine required version based on OS
+    # These dont have the calc_iso_cpus function in their profile so only need 2.15
+    if "ubuntu:22.04" in base_image or "debian:11" in base_image:
+        required_major = 2
+        required_minor = 15
+    elif "ubuntu:24.04" in base_image or "debian:12" in base_image or "rocky:9" in base_image or "rockylinux:9" in base_image:
+        required_major = 2
+        required_minor = 19
+    else:
+        # Default to 2.19 for unknown OS
+        required_major = 2
+        required_minor = 19
+    
     # Ensure container is initialized
     if runner.container is None:
         raise RuntimeError("Container not initialized. Call install_tuned_in_container first.")
@@ -79,8 +92,8 @@ def verify_tuned_version(runner: DockerTestRunner):
     major = int(version_match.group(1))
     minor = int(version_match.group(2))
     
-    assert major > 2 or (major == 2 and minor >= 19), \
-        f"tuned version {major}.{minor} is less than required 2.19"
+    assert major > required_major or (major == required_major and minor >= required_minor), \
+        f"tuned version {major}.{minor} is less than required {required_major}.{required_minor} for {base_image}"
 
 
 def create_container_for_testing(runner: DockerTestRunner, configmaps: dict):
@@ -186,14 +199,14 @@ def run_script_in_container(runner: DockerTestRunner, script: str, configmaps: d
 
 
 def test_tuned_version_requirement(base_image):
-    """Test that tuned version >= 2.19 is required."""
+    """Test that tuned version meets OS-specific requirement (>= 2.15 for Ubuntu 22.04/Debian 11, >= 2.19 for others)."""
     runner = DockerTestRunner(package="nvidia-tuned", base_image=base_image)
     try:
         # Create container directly
         create_container_for_testing(runner, {"accelerator": "h100"})
         # Install tuned
         install_tuned_in_container(runner, base_image)
-        verify_tuned_version(runner)
+        verify_tuned_version(runner, base_image)
     finally:
         runner.cleanup()
 
@@ -338,7 +351,7 @@ def test_prepare_nvidia_profiles_aws_grub_config(base_image):
         # Create a mock /etc/tuned/bootcmdline file to simulate tuned writing it
         # Note: The bootcmdline file should contain the boot parameters as text
         runner.container.exec_run(
-            ["bash", "-c", "mkdir -p /etc/tuned && echo 'iommu=pt hugepages=8192' > /etc/tuned/bootcmdline"],
+            ["bash", "-c", "mkdir -p /etc/tuned && echo 'TUNED_BOOT_CMDLINE=\"iommu=pt hugepages=8192\"' > /etc/tuned/bootcmdline"],
             workdir="/"
         )
         
