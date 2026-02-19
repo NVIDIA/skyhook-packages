@@ -20,7 +20,7 @@ This package requires **tuned >= 2.19**. The following operating systems are sup
 |----|---------|--------|-------|
 | **Ubuntu** | 22.04 (Jammy) | ✅ Tested | Uses a min of OS-specific and common profiles |
 | **Ubuntu** | 24.04 (Noble) | ✅ Tested | Uses common profiles |
-| **Debian** | 11 (Bullseye) | ⚠️ verified tuned package version but not fully tested | Uses OS-specific profiles |
+| **Debian** | 11 (Bullseye) | ❌ | Default tuned version is too old (2.15) |
 | **Debian** | 12 (Bookworm) | ⚠️ verified tuned package version but not fully tested| Uses common profiles |
 | **RHEL** | 9 | ⚠️ verified tuned package version but not fully tested| Uses common profiles |
 | **Other** | Any | ⚠️ Fallback | Falls back to `os/common/` profiles (untested, requires tuned >= 2.19) |
