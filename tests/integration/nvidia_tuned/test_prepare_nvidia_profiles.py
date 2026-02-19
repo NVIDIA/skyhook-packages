@@ -444,11 +444,19 @@ def test_prepare_nvidia_profiles_aws_service_specific_profile(base_image):
             "/etc/tuned/nvidia-h100-inference/tuned.conf"
         )
         
-        # AWS-specific profile should NOT have scheduler parameters
-        assert "kernel.sched_latency_ns" not in inference_profile_content, \
-            "AWS-specific inference profile should not contain kernel.sched_latency_ns"
-        assert "kernel.sched_min_granularity_ns" not in inference_profile_content, \
-            "AWS-specific inference profile should not contain kernel.sched_min_granularity_ns"
+        # AWS-specific profile should NOT have scheduler parameters set (they may be in comments)
+        # Check that they're not set as actual sysctl parameters (not commented out)
+        import re
+        
+        # Check for uncommented kernel.sched_latency_ns= lines
+        latency_pattern = r'^\s*kernel\.sched_latency_ns\s*='
+        assert not re.search(latency_pattern, inference_profile_content, re.MULTILINE), \
+            "AWS-specific inference profile should not contain uncommented kernel.sched_latency_ns"
+        
+        # Check for uncommented kernel.sched_min_granularity_ns= lines
+        granularity_pattern = r'^\s*kernel\.sched_min_granularity_ns\s*='
+        assert not re.search(granularity_pattern, inference_profile_content, re.MULTILINE), \
+            "AWS-specific inference profile should not contain uncommented kernel.sched_min_granularity_ns"
         
         # But should have vm.swappiness
         assert "vm.swappiness=1" in inference_profile_content, \
