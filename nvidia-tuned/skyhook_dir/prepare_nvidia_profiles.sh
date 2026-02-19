@@ -134,6 +134,21 @@ deploy_service_profile() {
         exit 1
     fi
 
+    # Check if there's a service-specific version of the profile
+    local service_specific_profile="$service_dir/${profile}.conf"
+    if [ -f "$service_specific_profile" ]; then
+        echo "Found service-specific profile: $service_specific_profile"
+        # Deploy the service-specific profile to /etc/tuned/
+        mkdir -p "$TUNED_USER_DIR/$profile"
+        cp "$service_specific_profile" "$TUNED_USER_DIR/$profile/tuned.conf"
+        echo "Deployed service-specific profile: $profile"
+        # Use the service-specific profile in the include
+        local profile_to_include="$profile"
+    else
+        # Use the regular profile
+        local profile_to_include="$profile"
+    fi
+
     # Create service profile directory
     mkdir -p "$TUNED_USER_DIR/$service"
 
@@ -141,8 +156,8 @@ deploy_service_profile() {
     local template="$service_dir/tuned.conf.template"
     if [ -f "$template" ]; then
         # Insert include= line after [main]
-        sed "s/^\[main\]/[main]\ninclude=$profile/" "$template" | tee "$TUNED_USER_DIR/$service/tuned.conf" > /dev/null
-        echo "Created service profile: $service with include=$profile"
+        sed "s/^\[main\]/[main]\ninclude=$profile_to_include/" "$template" | tee "$TUNED_USER_DIR/$service/tuned.conf" > /dev/null
+        echo "Created service profile: $service with include=$profile_to_include"
     else
         echo "ERROR: Service template not found: $template"
         exit 1
@@ -153,6 +168,7 @@ deploy_service_profile() {
         [ -f "$file" ] || continue
         filename=$(basename "$file")
         [ "$filename" = "tuned.conf.template" ] && continue
+        [[ "$filename" == *.conf ]] && continue  # Skip .conf files (they're service-specific profiles)
         cp "$file" "$TUNED_USER_DIR/$service/$filename"
         chmod +x "$TUNED_USER_DIR/$service/$filename" 2>/dev/null || true
         echo "Copied service file: $filename"
