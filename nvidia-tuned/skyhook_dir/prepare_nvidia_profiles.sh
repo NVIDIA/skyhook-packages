@@ -84,28 +84,37 @@ deploy_common_profiles() {
 deploy_os_profiles() {
     echo "Deploying OS profiles to $TUNED_USER_DIR..."
 
-    local os_dir=""
+    mkdir -p "$TUNED_USER_DIR"
 
-    # Try OS-specific path first, then fall back to os/common
-    if [ -d "$PROFILES_DIR/os/$OS_ID/$VERSION" ]; then
-        os_dir="$PROFILES_DIR/os/$OS_ID/$VERSION"
-        echo "Using OS-specific profiles from: $OS_ID/$VERSION"
-    elif [ -d "$PROFILES_DIR/os/common" ]; then
-        os_dir="$PROFILES_DIR/os/common"
-        echo "Using common OS profiles from: os/common"
+    # Always deploy from os/common first (provides all profiles)
+    if [ -d "$PROFILES_DIR/os/common" ]; then
+        echo "Deploying common OS profiles from: os/common"
+        for profile_dir in "$PROFILES_DIR/os/common"/*/; do
+            [ -d "$profile_dir" ] || continue
+            profile_name=$(basename "$profile_dir")
+            cp -rL "$profile_dir" "$TUNED_USER_DIR/$profile_name"
+            echo "Deployed common profile: $profile_name"
+        done
     else
+        echo "WARNING: No common OS profiles found at $PROFILES_DIR/os/common"
+    fi
+
+    # Then overlay OS-specific profiles (these override common ones)
+    if [ -d "$PROFILES_DIR/os/$OS_ID/$VERSION" ]; then
+        echo "Overlaying OS-specific profiles from: $OS_ID/$VERSION"
+        for profile_dir in "$PROFILES_DIR/os/$OS_ID/$VERSION"/*/; do
+            [ -d "$profile_dir" ] || continue
+            profile_name=$(basename "$profile_dir")
+            cp -rL "$profile_dir" "$TUNED_USER_DIR/$profile_name"
+            echo "Deployed OS-specific profile: $profile_name"
+        done
+    fi
+
+    # Verify we have at least some profiles
+    if [ ! -d "$TUNED_USER_DIR" ] || [ -z "$(ls -A "$TUNED_USER_DIR" 2>/dev/null)" ]; then
         echo "ERROR: No OS profiles found in os/$OS_ID/$VERSION/ or os/common/"
         exit 1
     fi
-
-    # Copy ALL profiles from the OS directory (dereference symlinks with -L)
-    mkdir -p "$TUNED_USER_DIR"
-    for profile_dir in "$os_dir"/*/; do
-        [ -d "$profile_dir" ] || continue
-        profile_name=$(basename "$profile_dir")
-        cp -rL "$profile_dir" "$TUNED_USER_DIR/$profile_name"
-        echo "Deployed OS profile: $profile_name"
-    done
 }
 
 # Validate that the requested profile exists
@@ -134,6 +143,21 @@ deploy_service_profile() {
         exit 1
     fi
 
+    # Check if there's a service-specific version of the profile
+    local service_specific_profile="$service_dir/${profile}.conf"
+    if [ -f "$service_specific_profile" ]; then
+        echo "Found service-specific profile: $service_specific_profile"
+        # Deploy the service-specific profile to /etc/tuned/
+        mkdir -p "$TUNED_USER_DIR/$profile"
+        cp "$service_specific_profile" "$TUNED_USER_DIR/$profile/tuned.conf"
+        echo "Deployed service-specific profile: $profile"
+        # Use the service-specific profile in the include
+        local profile_to_include="$profile"
+    else
+        # Use the regular profile
+        local profile_to_include="$profile"
+    fi
+
     # Create service profile directory
     mkdir -p "$TUNED_USER_DIR/$service"
 
@@ -141,8 +165,8 @@ deploy_service_profile() {
     local template="$service_dir/tuned.conf.template"
     if [ -f "$template" ]; then
         # Insert include= line after [main]
-        sed "s/^\[main\]/[main]\ninclude=$profile/" "$template" | tee "$TUNED_USER_DIR/$service/tuned.conf" > /dev/null
-        echo "Created service profile: $service with include=$profile"
+        sed "s/^\[main\]/[main]\ninclude=$profile_to_include/" "$template" | tee "$TUNED_USER_DIR/$service/tuned.conf" > /dev/null
+        echo "Created service profile: $service with include=$profile_to_include"
     else
         echo "ERROR: Service template not found: $template"
         exit 1
@@ -153,6 +177,7 @@ deploy_service_profile() {
         [ -f "$file" ] || continue
         filename=$(basename "$file")
         [ "$filename" = "tuned.conf.template" ] && continue
+        [[ "$filename" == *.conf ]] && continue  # Skip .conf files (they're service-specific profiles)
         cp "$file" "$TUNED_USER_DIR/$service/$filename"
         chmod +x "$TUNED_USER_DIR/$service/$filename" 2>/dev/null || true
         echo "Copied service file: $filename"
