@@ -11,14 +11,12 @@ resolve_full_kernel() {
     echo "ERROR: kernel version not set" >&2
     return 1
   fi
-  # EKS on AWS: suffix is -aws; optional -64k for arm64 if EIDOS_KERNEL_64K_ARM64=true
+  # EKS on AWS: suffix is -aws
   local arch
   arch=$(uname -m)
   local suffix="-aws"
   if [ "${arch}" = "arm64" ] || [ "${arch}" = "aarch64" ]; then
-    if [ "${EIDOS_KERNEL_64K_ARM64:-false}" = "true" ]; then
-      suffix="-aws-64k"
-    fi
+    suffix="-aws-64k"
   fi
   # If base_version already contains -aws or similar, avoid duplicating
   case "${base_version}" in

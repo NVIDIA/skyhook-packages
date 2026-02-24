@@ -1,23 +1,23 @@
 # NVIDIA Setup Package
 
-A Skyhook package that applies the same node setup steps as the dgxcloud_aws_eks VMI framework for selected (service, accelerator) combinations. It runs **after** the machine is up (Skyhook on a live node) and performs upgrade, EFA driver install, Lustre client install, chrony configuration, and local disk setup.
+A Skyhook package that applies node setup steps for selected (service, accelerator) combinations. It runs **after** the machine is up (Skyhook on a live node). **Currently** it controls **kernel** (optional install or version check) and **EFA driver install** only; Lustre, chrony, and local disk setup are present in the codebase but commented out in `apply.sh`.
 
 ## Overview
 
 - **Opinionated:** Each (service, accelerator) has very specific baked-in configuration (exact kernel, lustre, EFA versions) in `defaults/*.conf`.
-- **Override via environment variables:** You can override kernel, EFA, lustre (and ofi if added) with `EIDOS_KERNEL`, `EIDOS_EFA`, `EIDOS_LUSTRE`, `EIDOS_OFI` in the Skyhook package `env`.
+- **Override via environment variables:** You can override kernel, EFA, lustre (and ofi if added) with `NVIDIA_KERNEL`, `NVIDIA_EFA`
 - **Configmap:** Only `service` and `accelerator` are required. Unsupported combinations fail with a clear error.
 
 ## Assumptions:
 
-- OS: `ubuntu`
+- OS: `ubuntu` 24.04
 
 ## Supported Combinations
 
 | service | accelerator | default kernel      | default lustre | default efa |
 |---------|-------------|---------------------|----------------|-------------|
-| eks     | h100        | 5.15.0-1025-aws     | aws            | 1.31.0      |
-| eks     | gb200       | 6.8.0-1012-aws      | aws            | 1.31.0      |
+| eks     | h100        | 6.14.0-1018-aws     | aws            | 1.47.0      |
+| eks     | gb200       | 6.14.0-1018-aws     | aws            | 1.47.0      |
 
 Defaults are defined in `skyhook_dir/defaults/eks-h100.conf` and `eks-gb200.conf`. Keep this table in sync when adding or changing defaults.
 
@@ -32,26 +32,85 @@ Defaults are defined in `skyhook_dir/defaults/eks-h100.conf` and `eks-gb200.conf
 
 Set these on the package spec in the Skyhook Custom Resource (`spec.packages.<name>.env`):
 
-- `EIDOS_KERNEL` – kernel version (overrides default from defaults file)
-- `EIDOS_EFA` – EFA installer version
-- `EIDOS_LUSTRE` – lustre version or `aws` for AWS FSx repo
-- `EIDOS_OFI` – reserved for future OFI version override
+- `NVIDIA_SETUP_INSTALL_KERNEL` – `true` or `false` (default: `false`). If `true`, apply **only** installs the exact kernel from the defaults file (via `downgrade_kernel.sh`) and then exits; a reboot is required. After reboot, the **post-interrupt-check** verifies the running kernel matches the expected version. If `false`, apply verifies the current kernel is >= the required version and errors otherwise, then continues with the full apply (EFA, Lustre, etc.).
+- `NVIDIA_KERNEL` – kernel version (overrides default from defaults file)
+- `NVIDIA_EFA` – EFA installer version
 
 ## Apply Steps (EKS)
 
-For `service=eks` the apply step runs, in order:
+For `service=eks` the apply step currently runs, in order:
 
-1. **upgrade** – `apt-get update && apt-get upgrade -y`
-2. **install-efa-driver** – download and run AWS EFA installer
-3. **install-lustre** – install Lustre client (AWS repo or build from source)
-4. **configure-chrony** – install chrony and point to IMDS `169.254.169.123`
-5. **setup-local-disks** – install `setup-local-disks.sh` to `/usr/local/bin` and run it (e.g. `raid0`). A **reboot may be required** after apply so the disk layout is active (use Skyhook interrupt or reboot the node separately).
+1. **ensure_kernel** – if `NVIDIA_SETUP_INSTALL_KERNEL=false`: verify running kernel is >= required; if `true`: install exact kernel only (then exit; reboot required).
+2. **upgrade** – `apt-get update && apt-get upgrade -y`
+3. **install-efa-driver** – download and run AWS EFA installer
+
+The following steps exist in the codebase but are **commented out** in `apply.sh` for now: **install-lustre**, **configure-chrony**, **setup-local-disks**. Re-enable them in `apply.sh` when needed.
 
 OFI, hardening, and system-node-settings are **not** included.
 
 ## Apply-Check
 
-Apply-check validates that all steps for the selected (service, accelerator) are complete: upgrade (apt update ok), EFA present, Lustre client modules installed, chrony configured with IMDS, and `/usr/local/bin/setup-local-disks` present and executable.
+When `NVIDIA_SETUP_INSTALL_KERNEL=true` is set, apply-check (and **post-interrupt-check**) only verify that the running kernel matches the expected version from defaults/env. When the env var is false or unset, apply-check runs upgrade (apt update ok) and EFA present; Lustre, chrony, and setup_local_disks checks are commented out in `apply_check.sh` to match `apply.sh`. Re-enable them in both when adding those steps back.
+
+## Post-Interrupt-Check
+
+When `NVIDIA_SETUP_INSTALL_KERNEL=true` is set, the kernel install step may trigger a reboot. After the interrupt (reboot), **post-interrupt-check** runs (with the same env var) and verifies the running kernel matches the expected version from defaults/env; it fails if not.
+
+## Kernel install with interrupt reboot + full setup (two packages)
+
+When you need to install the exact default kernel and then run the rest of the setup (EFA, and when re-enabled: Lustre, chrony, local disks), use two nvidia-setup packages:
+
+1. **First package** – kernel only, with **interrupt: reboot**. Apply runs only the kernel install (and may reboot); after reboot, post-interrupt-check verifies the kernel.
+2. **Second package** – full setup, with **dependsOn** the first. Apply runs the normal steps (upgrade, EFA, and when uncommented: Lustre, chrony, local disks) and will see the correct running kernel (no kernel install, just the “current kernel >= required” check).
+
+Both packages use the same `service` and `accelerator` configMap; only the first sets `NVIDIA_SETUP_INSTALL_KERNEL=true`. The first package must declare an interrupt (e.g. reboot) so the node reboots into the new kernel before the second package runs.
+
+Example (adjust `dependsOn` / interrupt keys to match your Skyhook API):
+
+```yaml
+apiVersion: skyhook.nvidia.com/v1alpha1
+kind: Skyhook
+metadata:
+  name: nvidia-setup-eks
+spec:
+  nodeSelectors:
+    matchLabels:
+      nvidia.com/gpu: "true"
+  packages:
+    # 1) Install exact kernel only; reboot required
+    nvidia-setup-kernel:
+      image: ghcr.io/nvidia/skyhook-packages/nvidia-setup
+      version: 0.1.0
+      configMap:
+        service: eks
+        accelerator: h100
+      env:
+        - name: NVIDIA_SETUP_INSTALL_KERNEL
+          value: "true"
+      # Declare reboot interrupt so the node reboots after kernel install
+      interrupt:
+        type: reboot
+
+    # 2) Full setup (EFA; Lustre, chrony, local disks when uncommented in apply.sh) after kernel is in place
+    nvidia-setup-full:
+      image: ghcr.io/nvidia/skyhook-packages/nvidia-setup
+      version: 0.1.0
+      resources:
+        cpuLimit: 4000m
+        cpuRequest: 2000m
+        memoryLimit: 8192Mi
+        memoryRequest: 4096Mi
+      configMap:
+        service: eks
+        accelerator: h100
+      env:
+        - name: NVIDIA_SETUP_INSTALL_KERNEL
+          value: "false"
+      dependsOn:
+        nvidia-setup-kernel: 0.1.0
+```
+
+Flow: apply `nvidia-setup-kernel` → kernel install → reboot (interrupt) → post-interrupt-check verifies kernel → apply `nvidia-setup-full` (kernel check passes, then upgrade, EFA, and when uncommented: Lustre, chrony, local disks).
 
 ## Usage Example
 
@@ -68,12 +127,17 @@ spec:
     nvidia-setup:
       image: ghcr.io/nvidia/skyhook-packages/nvidia-setup
       version: 0.1.0
+      resources:
+        cpuLimit: 4000m
+        cpuRequest: 2000m
+        memoryLimit: 8192Mi
+        memoryRequest: 4096Mi
       configMap:
         service: eks
         accelerator: h100
       # Optional overrides:
       env:
-        - name: EIDOS_EFA
+        - name: NVIDIA_EFA
           value: "1.31.0"
 ```
 

@@ -1,6 +1,6 @@
 {
   "schema_version": "v1",
-  "package_name": "eidos_setup",
+  "package_name": "nvidia_setup",
   "package_version": "0.1.0",
   "expected_config_files": ["service", "accelerator"],
   "modes": {
@@ -20,6 +20,18 @@
       {
         "name": "apply-check",
         "path": "apply_check.sh",
+        "arguments": [],
+        "returncodes": [0],
+        "on_host": true,
+        "env": {},
+        "idempotence": true,
+        "upgrade_step": false
+      }
+    ],
+    "post-interrupt-check": [
+      {
+        "name": "post-interrupt-check",
+        "path": "post_interrupt_check.sh",
         "arguments": [],
         "returncodes": [0],
         "on_host": true,

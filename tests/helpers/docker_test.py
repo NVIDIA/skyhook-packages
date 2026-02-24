@@ -74,6 +74,10 @@ class DockerTestRunner:
         # gets copied to /root/${SKYHOOK_DIR} on the host filesystem
         shutil.copytree(self._package_path, skyhook_package_dir, dirs_exist_ok=True)
         
+        # Make all .sh scripts executable (entry script and any scripts it invokes)
+        for sh_file in skyhook_package_dir.rglob("*.sh"):
+            sh_file.chmod(0o755)
+        
         # Create configmaps directory and write configmaps
         configmaps_dir = skyhook_package_dir / "configmaps"
         configmaps_dir.mkdir(parents=True, exist_ok=True)
