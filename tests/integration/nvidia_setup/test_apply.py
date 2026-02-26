@@ -68,9 +68,9 @@ def test_apply_with_env_overrides(base_image):
             script="apply.sh",
             configmaps={"service": "eks", "accelerator": "h100"},
             env_vars={
-                "EIDOS_KERNEL": "6.8.0",
-                "EIDOS_EFA": "1.31.0",
-                "EIDOS_LUSTRE": "aws"
+                "NVIDIA_KERNEL": "6.8.0",
+                "NVIDIA_EFA": "1.31.0",
+                "NVIDIA_LUSTRE": "aws"
             },
             skip_system_operations=True
         )
