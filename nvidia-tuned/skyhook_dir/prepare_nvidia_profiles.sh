@@ -191,6 +191,24 @@ write_tuned_profile() {
     echo "Set active tuned profile: $active_profile"
 }
 
+# Set reapply_sysctl = 0 in /etc/tuned/tuned-main.conf so tuned profile sysctl
+# settings take precedence over /etc/sysctl.d (e.g. cloud_customizations.conf).
+set_reapply_sysctl_off() {
+    local tuned_main="/etc/tuned/tuned-main.conf"
+    if [ -f "$tuned_main" ]; then
+        if grep -q '^[[:space:]]*reapply_sysctl[[:space:]]*=' "$tuned_main"; then
+            sed -i 's/^[[:space:]]*reapply_sysctl[[:space:]]*=[[:space:]]*1[[:space:]]*$/reapply_sysctl = 0/' "$tuned_main"
+            echo "Set reapply_sysctl = 0 in $tuned_main"
+        else
+            echo "reapply_sysctl = 0" >> "$tuned_main"
+            echo "Added reapply_sysctl = 0 to $tuned_main"
+        fi
+    else
+        echo "reapply_sysctl = 0" > "$tuned_main"
+        echo "Created $tuned_main with reapply_sysctl = 0"
+    fi
+}
+
 main() {
     # Read intent from configmap (defaults to performance)
     if [ -f "$INTENT_FILE" ]; then
@@ -240,6 +258,8 @@ main() {
         # No service file, use workload profile directly
         write_tuned_profile "$PROFILE"
     fi
+
+    set_reapply_sysctl_off
 
     echo "Profile preparation complete"
 }
