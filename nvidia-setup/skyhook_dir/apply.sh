@@ -21,16 +21,16 @@ run_eks_h100() {
   "${STEPS_DIR}/upgrade.sh"
   "${STEPS_DIR}/install-efa-driver.sh" "${EFA}"
   # "${STEPS_DIR}/install-lustre.sh" "${KERNEL}" "${LUSTRE}"
-  # "${STEPS_DIR}/configure-chrony.sh"
-  # "${STEPS_DIR}/setup_local_disks.sh" raid0
+  "${STEPS_DIR}/configure-chrony.sh"
+  "${STEPS_DIR}/setup_local_disks.sh" raid0
 }
 
 run_eks_gb200() {
   "${STEPS_DIR}/upgrade.sh"
   "${STEPS_DIR}/install-efa-driver.sh" "${EFA}"
   # "${STEPS_DIR}/install-lustre.sh" "${KERNEL}" "${LUSTRE}"
-  # "${STEPS_DIR}/configure-chrony.sh"
-  # "${STEPS_DIR}/setup_local_disks.sh" raid0
+  "${STEPS_DIR}/configure-chrony.sh"
+  "${STEPS_DIR}/setup_local_disks.sh" raid0
 }
 
 case "${COMBINATION}" in
