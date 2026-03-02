@@ -11,7 +11,7 @@ import shutil
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple, Union
 
 import docker
 
@@ -52,27 +52,49 @@ class DockerTestRunner:
             self.temp_dir = tempfile.mkdtemp(prefix="skyhook-test-")
         return Path(self.temp_dir)
     
-    def _setup_package_environment(self, configmaps: Optional[Dict[str, str]] = None) -> Path:
+    def _setup_package_environment(
+        self,
+        configmaps: Optional[Dict[str, str]] = None,
+        extra_files: Optional[List[Tuple[Union[str, Path], str]]] = None,
+    ) -> Path:
         """
         Set up the package environment in a temporary directory.
-        
+
         The package root gets copied to SKYHOOK_DIR (/skyhook-package).
         This matches how packages are structured in production.
-        
+
         Args:
             configmaps: Dictionary of configmap key-value pairs
-            
+            extra_files: Optional list of (source_path, dest_relative_to_skyhook_package)
+                         to copy into the package (e.g. test scripts from tests/).
+
         Returns:
             Path to the skyhook-package directory
         """
         temp_dir = self._create_temp_directory()
         skyhook_package_dir = temp_dir / "skyhook-package"
-        
+
         # Copy entire package directory structure to skyhook-package
         # This matches the package Dockerfile: COPY . /skyhook-package
         # In production, everything from /skyhook-package/* in the container image
         # gets copied to /root/${SKYHOOK_DIR} on the host filesystem
         shutil.copytree(self._package_path, skyhook_package_dir, dirs_exist_ok=True)
+
+        # Copy extra files (e.g. test scripts from tests/) into the package
+        if extra_files:
+            for src, dest_rel in extra_files:
+                src_path = Path(src)
+                if not src_path.is_file():
+                    raise ValueError(f"extra_files source not a file: {src_path}")
+                dest_path = skyhook_package_dir / dest_rel
+                dest_path.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(src_path, dest_path)
+                if dest_rel.endswith(".sh"):
+                    dest_path.chmod(0o755)
+
+        # Make all .sh scripts executable (entry script and any scripts it invokes)
+        for sh_file in skyhook_package_dir.rglob("*.sh"):
+            sh_file.chmod(0o755)
         
         # Create configmaps directory and write configmaps
         configmaps_dir = skyhook_package_dir / "configmaps"
@@ -89,25 +111,34 @@ class DockerTestRunner:
         
         return skyhook_package_dir
     
-    def run_script(self, script: str, configmaps: Optional[Dict[str, str]] = None,
-                   env_vars: Optional[Dict[str, str]] = None,
-                   skip_system_operations: bool = False,
-                   script_args: Optional[List[str]] = None) -> TestResult:
+    def run_script(
+        self,
+        script: str,
+        configmaps: Optional[Dict[str, str]] = None,
+        env_vars: Optional[Dict[str, str]] = None,
+        skip_system_operations: bool = False,
+        script_args: Optional[List[str]] = None,
+        extra_files: Optional[List[Tuple[Union[str, Path], str]]] = None,
+    ) -> TestResult:
         """
         Run a script in a Docker container.
-        
+
         Args:
             script: Path to script relative to skyhook_dir (e.g., "apply.sh" or "steps/upgrade.sh")
             configmaps: Dictionary of configmap key-value pairs
             env_vars: Dictionary of additional environment variables
             skip_system_operations: If True, set SKIP_SYSTEM_OPERATIONS flag
             script_args: Optional list of arguments to pass to the script
-            
+            extra_files: Optional list of (source_path, dest_relative_to_skyhook_package)
+                         to copy into the package before running (e.g. test scripts from tests/)
+
         Returns:
             TestResult object with exit code, stdout, stderr, and container_id
         """
         # Set up package environment
-        skyhook_package_dir = self._setup_package_environment(configmaps)
+        skyhook_package_dir = self._setup_package_environment(
+            configmaps=configmaps, extra_files=extra_files
+        )
         
         # Set up environment variables
         container_env = {

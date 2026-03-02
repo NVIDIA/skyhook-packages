@@ -5,7 +5,7 @@ Tests for nvidia-setup apply_check.sh script.
 
 import pytest
 
-from tests.helpers.assertions import assert_exit_code
+from tests.helpers.assertions import assert_exit_code, assert_output_contains
 from tests.helpers.docker_test import DockerTestRunner
 
 
@@ -61,12 +61,40 @@ def test_apply_check_with_env_overrides(base_image):
             script="apply_check.sh",
             configmaps={"service": "eks", "accelerator": "h100"},
             env_vars={
-                "EIDOS_KERNEL": "5.15.0-1025-aws",
-                "EIDOS_EFA": "1.31.0",
-                "EIDOS_LUSTRE": "aws"
+                "NVIDIA_KERNEL": "5.15.0-1025-aws",
+                "NVIDIA_EFA": "1.31.0",
+                "NVIDIA_LUSTRE": "aws"
             }
         )
         
         assert result.exit_code is not None
+    finally:
+        runner.cleanup()
+
+def test_post_interrupt_check_with_install_kernel_true_fails_when_kernel_mismatch(base_image):
+    """Post-interrupt-check with INSTALL_KERNEL=true verifies kernel; fails when running kernel doesn't match."""
+    runner = DockerTestRunner(package="nvidia-setup", base_image=base_image)
+    try:
+        result = runner.run_script(
+            script="post_interrupt_check.sh",
+            configmaps={"service": "eks", "accelerator": "h100"},
+            env_vars={"NVIDIA_SETUP_INSTALL_KERNEL": "true"},
+        )
+        assert_exit_code(result, 1)
+        assert_output_contains(result.stdout, "does not match expected")
+    finally:
+        runner.cleanup()
+
+
+def test_post_interrupt_check_with_install_kernel_false_exits_success(base_image):
+    """Post-interrupt-check with INSTALL_KERNEL=false does nothing and exits 0."""
+    runner = DockerTestRunner(package="nvidia-setup", base_image=base_image)
+    try:
+        result = runner.run_script(
+            script="post_interrupt_check.sh",
+            configmaps={"service": "eks", "accelerator": "h100"},
+            env_vars={"NVIDIA_SETUP_INSTALL_KERNEL": "false"},
+        )
+        assert_exit_code(result, 0)
     finally:
         runner.cleanup()
