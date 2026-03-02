@@ -6,7 +6,13 @@ The check compares upstream kernel versions (before first '-') so that
 e.g. 6.17.0-1007-aws is correctly considered >= 6.14.0-1018-aws (6.17 >= 6.14).
 """
 
+from pathlib import Path
+
 from tests.helpers.docker_test import DockerTestRunner
+
+# Test script lives with tests and is copied into the package at run time
+_CHECK_SCRIPT_SOURCE = Path(__file__).parent / "run_check_kernel_at_least_test.sh"
+_CHECK_SCRIPT_DEST = "skyhook_dir/steps/run_check_kernel_at_least_test.sh"
 
 
 def _run_check(runner: DockerTestRunner, current_kernel: str, required_kernel: str) -> int:
@@ -18,6 +24,7 @@ def _run_check(runner: DockerTestRunner, current_kernel: str, required_kernel: s
             "CURRENT_KERNEL": current_kernel,
             "REQUIRED_KERNEL": required_kernel,
         },
+        extra_files=[(_CHECK_SCRIPT_SOURCE, _CHECK_SCRIPT_DEST)],
     )
     return result.exit_code
 
