@@ -45,6 +45,7 @@ downgrade_kernel() {
   sudo update-grub
 
 
+  if [ "${NVIDIA_PIN_KERNEL:-false}" = "true" ]; then
   # Pin the kernel packages to prevent them from being updated
   cat << EOF > pin-kernel
 Package: linux-image-$full_kernel_ver
@@ -64,17 +65,19 @@ Pin: version $KERNEL_VERSION*
 Pin-Priority: 1001
 EOF
 
-  # Move the pin file to the preferences.d directory
-  mv pin-kernel /etc/apt/preferences.d/pin-kernel
-  chown root:root /etc/apt/preferences.d/pin-kernel
+    # Move the pin file to the preferences.d directory
+    mv pin-kernel /etc/apt/preferences.d/pin-kernel
+    chown root:root /etc/apt/preferences.d/pin-kernel
 
-  if [[ $CURRENT_KERNEL_VERSION != "${full_kernel_ver}" ]]; then
-    # Hold the Kernel packages
-    apt-mark hold \
-      linux-image-$full_kernel_ver \
-      linux-headers-$full_kernel_ver \
-      linux-modules-$full_kernel_ver \
-      linux-modules-extra-$full_kernel_ver
+    if [[ $CURRENT_KERNEL_VERSION != "${full_kernel_ver}" ]]; then
+      # Hold the Kernel packages
+      apt-mark hold \
+        linux-image-$full_kernel_ver \
+        linux-headers-$full_kernel_ver \
+        linux-modules-$full_kernel_ver \
+        linux-modules-extra-$full_kernel_ver
+    fi
+
   fi
 
 }

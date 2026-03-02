@@ -16,7 +16,7 @@ else
 fi
 
 install_kernel() {
-  "${STEPS_DIR}/downgrade_kernel.sh" "${KERNEL}"
+  "${STEPS_DIR}/install_kernel.sh" "${KERNEL}"
 }
 
 # Returns 0 if current >= required (by version sort)

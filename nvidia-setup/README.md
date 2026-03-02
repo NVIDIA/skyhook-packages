@@ -14,10 +14,12 @@ A Skyhook package that applies node setup steps for selected (service, accelerat
 
 ## Supported Combinations
 
-| service | accelerator | default kernel      | default lustre | default efa |
-|---------|-------------|---------------------|----------------|-------------|
-| eks     | h100        | 6.14.0-1018-aws     | aws            | 1.47.0      |
-| eks     | gb200       | 6.14.0-1018-aws     | aws            | 1.47.0      |
+See [VERSION_OVERVIEW.md](VERSION_OVERVIEW.md) for more information about what is set in each version of the package.
+
+| service | accelerator | default kernel      |  default efa |
+|---------|-------------|---------------------|--------------|
+| eks     | h100        | 6.14.0-1018-aws     |  1.47.0      |
+| eks     | gb200       | 6.14.0-1018-aws     |  1.47.0      |
 
 Defaults are defined in `skyhook_dir/defaults/eks-h100.conf` and `eks-gb200.conf`. Keep this table in sync when adding or changing defaults.
 
@@ -32,7 +34,8 @@ Defaults are defined in `skyhook_dir/defaults/eks-h100.conf` and `eks-gb200.conf
 
 Set these on the package spec in the Skyhook Custom Resource (`spec.packages.<name>.env`):
 
-- `NVIDIA_SETUP_INSTALL_KERNEL` – `true` or `false` (default: `false`). If `true`, apply **only** installs the exact kernel from the defaults file (via `downgrade_kernel.sh`) and then exits; a reboot is required. After reboot, the **post-interrupt-check** verifies the running kernel matches the expected version. If `false`, apply verifies the current kernel is >= the required version and errors otherwise, then continues with the full apply (EFA, Lustre, etc.).
+- `NVIDIA_SETUP_INSTALL_KERNEL` – `true` or `false` (default: `false`). If `true`, apply **only** installs the exact kernel from the defaults file (via `downgrade_kernel.sh`) and then exits; a reboot is required. After reboot, the **post-interrupt-check** verifies the running kernel matches the expected version. If `false`, apply verifies the current kernel is >= the required version and errors otherwise, then continues with the full apply 
+- `NVIDIA_PIN_KERNEL` - `true` or `false` (defaults: `false`). If `true`, pin the kernel to the exact version in the package so that it will not upgrade in future.
 - `NVIDIA_KERNEL` – kernel version (overrides default from defaults file)
 - `NVIDIA_EFA` – EFA installer version
 
@@ -44,13 +47,13 @@ For `service=eks` the apply step currently runs, in order:
 2. **upgrade** – `apt-get update && apt-get upgrade -y`
 3. **install-efa-driver** – download and run AWS EFA installer
 
-The following steps exist in the codebase but are **commented out** in `apply.sh` for now: **install-lustre**, **configure-chrony**, **setup-local-disks**. Re-enable them in `apply.sh` when needed.
+The following steps exist in the codebase but are **commented out** in `apply.sh` for now: **install-lustre** Re-enable them in `apply.sh` when needed.
 
 OFI, hardening, and system-node-settings are **not** included.
 
 ## Apply-Check
 
-When `NVIDIA_SETUP_INSTALL_KERNEL=true` is set, apply-check (and **post-interrupt-check**) only verify that the running kernel matches the expected version from defaults/env. When the env var is false or unset, apply-check runs upgrade (apt update ok) and EFA present; Lustre, chrony, and setup_local_disks checks are commented out in `apply_check.sh` to match `apply.sh`. Re-enable them in both when adding those steps back.
+When `NVIDIA_SETUP_INSTALL_KERNEL=true` is set, apply-check (and **post-interrupt-check**) only verify that the running kernel matches the expected version from defaults/env. When the env var is false or unset, apply-check runs upgrade (apt update ok) and EFA present; Lustre are commented out in `apply_check.sh` to match `apply.sh`. Re-enable them in both when adding those steps back.
 
 ## Post-Interrupt-Check
 
@@ -58,10 +61,10 @@ When `NVIDIA_SETUP_INSTALL_KERNEL=true` is set, the kernel install step may trig
 
 ## Kernel install with interrupt reboot + full setup (two packages)
 
-When you need to install the exact default kernel and then run the rest of the setup (EFA, and when re-enabled: Lustre, chrony, local disks), use two nvidia-setup packages:
+When you need to install the exact default kernel and then run the rest of the setup (EFA, and when re-enabled: Lustre), use two nvidia-setup packages:
 
 1. **First package** – kernel only, with **interrupt: reboot**. Apply runs only the kernel install (and may reboot); after reboot, post-interrupt-check verifies the kernel.
-2. **Second package** – full setup, with **dependsOn** the first. Apply runs the normal steps (upgrade, EFA, and when uncommented: Lustre, chrony, local disks) and will see the correct running kernel (no kernel install, just the “current kernel >= required” check).
+2. **Second package** – full setup, with **dependsOn** the first. Apply runs the normal steps (upgrade, EFA, and when uncommented: Lustre) and will see the correct running kernel (no kernel install, just the “current kernel >= required” check).
 
 Both packages use the same `service` and `accelerator` configMap; only the first sets `NVIDIA_SETUP_INSTALL_KERNEL=true`. The first package must declare an interrupt (e.g. reboot) so the node reboots into the new kernel before the second package runs.
 
@@ -91,7 +94,7 @@ spec:
       interrupt:
         type: reboot
 
-    # 2) Full setup (EFA; Lustre, chrony, local disks when uncommented in apply.sh) after kernel is in place
+    # 2) Full setup after kernel is in place
     nvidia-setup-full:
       image: ghcr.io/nvidia/skyhook-packages/nvidia-setup
       version: 0.1.0
