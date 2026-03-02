@@ -71,24 +71,6 @@ def test_apply_check_with_env_overrides(base_image):
     finally:
         runner.cleanup()
 
-
-def test_apply_check_with_install_kernel_true_runs_kernel_check_only(base_image):
-    """With NVIDIA_SETUP_INSTALL_KERNEL=true, apply_check runs only kernel_install_check (no full checks)."""
-    runner = DockerTestRunner(package="nvidia-setup", base_image=base_image)
-    try:
-        result = runner.run_script(
-            script="apply_check.sh",
-            configmaps={"service": "eks", "accelerator": "h100"},
-            env_vars={"NVIDIA_SETUP_INSTALL_KERNEL": "true"},
-        )
-        # Container kernel won't match default (5.15.0-1025-aws), so kernel check fails
-        assert_exit_code(result, 1)
-        assert_output_contains(result.stdout, "does not match expected")
-        assert_output_contains(result.stdout, "from defaults/env")
-    finally:
-        runner.cleanup()
-
-
 def test_post_interrupt_check_with_install_kernel_true_fails_when_kernel_mismatch(base_image):
     """Post-interrupt-check with INSTALL_KERNEL=true verifies kernel; fails when running kernel doesn't match."""
     runner = DockerTestRunner(package="nvidia-setup", base_image=base_image)

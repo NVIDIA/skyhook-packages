@@ -37,14 +37,18 @@ check_kernel_at_least() {
   return 1
 }
 
-if [ "${NVIDIA_SETUP_INSTALL_KERNEL:-false}" = "true" ]; then
-  install_kernel
-  exit 0
+# When TEST_CHECK_KERNEL_AT_LEAST is set, skip normal execution so tests can source this file and call check_kernel_at_least.
+if [ -z "${TEST_CHECK_KERNEL_AT_LEAST:-}" ]; then
+  if [ "${NVIDIA_SETUP_INSTALL_KERNEL:-false}" = "true" ]; then
+    install_kernel
+    exit 0
+  fi
+
+  # Check current kernel is >= required
+  required_full="$(resolve_full_kernel "${KERNEL}")"
+  if ! check_kernel_at_least "${required_full}"; then
+    echo "Error: current kernel $(uname -r) is not >= required ${required_full}. Set NVIDIA_SETUP_INSTALL_KERNEL=true to install the exact kernel, or boot with a compatible kernel." >&2
+    exit 1
+  fi
 fi
 
-# Check current kernel is >= required
-required_full="$(resolve_full_kernel "${KERNEL}")"
-if ! check_kernel_at_least "${required_full}"; then
-  echo "Error: current kernel $(uname -r) is not >= required ${required_full}. Set NVIDIA_SETUP_INSTALL_KERNEL=true to install the exact kernel, or boot with a compatible kernel." >&2
-  exit 1
-fi
