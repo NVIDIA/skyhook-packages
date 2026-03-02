@@ -15,13 +15,6 @@ install_efa() {
   curl -sSfO "https://efa-installer.amazonaws.com/aws-efa-installer-${EFA_VERSION}.tar.gz"
   tar -xf "aws-efa-installer-${EFA_VERSION}.tar.gz"
   cd aws-efa-installer
-
-    
-  # Check memory before each attempt
-  if ! check_memory; then
-    echo "Error: Insufficient memory for EFA installation" >&2
-    exit 1
-  fi
   
   ./efa_installer.sh -y
   echo "EFA installation completed successfully"
