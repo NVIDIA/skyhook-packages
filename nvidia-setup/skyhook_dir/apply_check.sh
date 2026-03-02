@@ -2,12 +2,6 @@
 set -e
 STEPS_CHECK_DIR="${SKYHOOK_DIR}/skyhook_dir/steps_check"
 
-# When NVIDIA_SETUP_INSTALL_KERNEL=true, only verify kernel (same env that triggered kernel install)
-if [ "${NVIDIA_SETUP_INSTALL_KERNEL:-false}" = "true" ]; then
-  "${STEPS_CHECK_DIR}/kernel_install_check.sh"
-  exit
-fi
-
 # shellcheck source=load_defaults.sh
 . "${SKYHOOK_DIR}/skyhook_dir/load_defaults.sh"
 

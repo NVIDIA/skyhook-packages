@@ -19,14 +19,19 @@ install_kernel() {
   "${STEPS_DIR}/install_kernel.sh" "${KERNEL}"
 }
 
-# Returns 0 if current >= required (by version sort)
+# Returns 0 if current >= required (by upstream version).
+# Compares only the upstream part (before first '-') so local suffixes like
+# -1007-aws vs -1018-aws do not reverse the order (sort -V on full uname -r
+# can treat 6.17.0-1007 as "smaller" than 6.14.0-1018 because 1007 < 1018).
 check_kernel_at_least() {
   local required="$1"
   local current
   current=$(uname -r)
+  local required_upstream="${required%%-*}"
+  local current_upstream="${current%%-*}"
   local first
-  first=$(printf '%s\n' "${required}" "${current}" | sort -V | head -n1)
-  if [ "${first}" = "${required}" ]; then
+  first=$(printf '%s\n' "${required_upstream}" "${current_upstream}" | sort -V | head -n1)
+  if [ "${first}" = "${required_upstream}" ]; then
     return 0
   fi
   return 1
