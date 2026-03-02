@@ -15,16 +15,16 @@ check_eks_h100() {
   "${STEPS_CHECK_DIR}/upgrade_check.sh"
   "${STEPS_CHECK_DIR}/install_efa_driver_check.sh"
   # "${STEPS_CHECK_DIR}/install_lustre_check.sh" "${KERNEL}"
-  # "${STEPS_CHECK_DIR}/configure_chrony_check.sh"
-  # "${STEPS_CHECK_DIR}/setup_local_disks_check.sh"
+  "${STEPS_CHECK_DIR}/configure_chrony_check.sh"
+  "${STEPS_CHECK_DIR}/setup_local_disks_check.sh"
 }
 
 check_eks_gb200() {
   "${STEPS_CHECK_DIR}/upgrade_check.sh"
   "${STEPS_CHECK_DIR}/install_efa_driver_check.sh"
   # "${STEPS_CHECK_DIR}/install_lustre_check.sh" "${KERNEL}"
-  # "${STEPS_CHECK_DIR}/configure_chrony_check.sh"
-  # "${STEPS_CHECK_DIR}/setup_local_disks_check.sh"
+  "${STEPS_CHECK_DIR}/configure_chrony_check.sh"
+  "${STEPS_CHECK_DIR}/setup_local_disks_check.sh"
 }
 
 case "${COMBINATION}" in
