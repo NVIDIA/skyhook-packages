@@ -5,6 +5,11 @@ STEPS_CHECK_DIR="${SKYHOOK_DIR}/skyhook_dir/steps_check"
 # shellcheck source=load_defaults.sh
 . "${SKYHOOK_DIR}/skyhook_dir/load_defaults.sh"
 
+# Skip checks if only installing kernel as we need to reboot before any check would work
+if [ "${NVIDIA_SETUP_INSTALL_KERNEL}" = "true" ]; then
+  exit 0
+fi
+
 check_eks_h100() {
   "${STEPS_CHECK_DIR}/upgrade_check.sh"
   "${STEPS_CHECK_DIR}/install_efa_driver_check.sh"
