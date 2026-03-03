@@ -1,7 +1,11 @@
 #!/bin/bash
 # ensure_kernel.sh: install exact kernel (if NVIDIA_SETUP_INSTALL_KERNEL=true) or
-# verify current kernel is >= required (if false).
+# verify current kernel meets requirement (see NVIDIA_SETUP_KERNEL_ALLOW_NEWER).
 set -e
+#
+# NVIDIA_SETUP_KERNEL_ALLOW_NEWER (default: false). When false, the running kernel
+# must match the required upstream version exactly. When true, the running kernel
+# may be newer (current >= required).
 
 STEPS_DIR="${SKYHOOK_DIR}/skyhook_dir/steps"
 
@@ -37,6 +41,16 @@ check_kernel_at_least() {
   return 1
 }
 
+# Returns 0 if current upstream version equals required upstream version (exact match).
+check_kernel_exact() {
+  local required="$1"
+  local current
+  current=$(uname -r)
+  local required_upstream="${required%%-*}"
+  local current_upstream="${current%%-*}"
+  [ "${current_upstream}" = "${required_upstream}" ]
+}
+
 # When TEST_CHECK_KERNEL_AT_LEAST is set, skip normal execution so tests can source this file and call check_kernel_at_least.
 if [ -z "${TEST_CHECK_KERNEL_AT_LEAST:-}" ]; then
   if [ "${NVIDIA_SETUP_INSTALL_KERNEL:-false}" = "true" ]; then
@@ -44,11 +58,18 @@ if [ -z "${TEST_CHECK_KERNEL_AT_LEAST:-}" ]; then
     exit 0
   fi
 
-  # Check current kernel is >= required
+  # Check current kernel meets requirement (exact or at-least depending on env)
   required_full="$(resolve_full_kernel "${KERNEL}")"
-  if ! check_kernel_at_least "${required_full}"; then
-    echo "Error: current kernel $(uname -r) is not >= required ${required_full}. Set NVIDIA_SETUP_INSTALL_KERNEL=true to install the exact kernel, or boot with a compatible kernel." >&2
-    exit 1
+  if [ "${NVIDIA_SETUP_KERNEL_ALLOW_NEWER:-false}" = "true" ]; then
+    if ! check_kernel_at_least "${required_full}"; then
+      echo "Error: current kernel $(uname -r) is not >= required ${required_full}. Set NVIDIA_SETUP_INSTALL_KERNEL=true to install the exact kernel, or boot with a compatible kernel." >&2
+      exit 1
+    fi
+  else
+    if ! check_kernel_exact "${required_full}"; then
+      echo "Error: current kernel $(uname -r) does not match required ${required_full} (exact match required). Set NVIDIA_SETUP_KERNEL_ALLOW_NEWER=true to allow a newer kernel, or NVIDIA_SETUP_INSTALL_KERNEL=true to install the exact kernel." >&2
+      exit 1
+    fi
   fi
 fi
 
