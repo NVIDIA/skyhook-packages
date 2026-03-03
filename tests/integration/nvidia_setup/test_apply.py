@@ -69,6 +69,7 @@ def test_apply_with_env_overrides(base_image):
             configmaps={"service": "eks", "accelerator": "h100"},
             env_vars={
                 "NVIDIA_KERNEL": "6.8.0",
+                "NVIDIA_SETUP_KERNEL_ALLOW_NEWER": "true",  # container kernel may be newer than override
                 "NVIDIA_EFA": "1.31.0",
                 "NVIDIA_LUSTRE": "aws"
             },
