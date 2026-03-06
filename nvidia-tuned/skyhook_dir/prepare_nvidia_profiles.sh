@@ -18,10 +18,11 @@
 
 # Prepares NVIDIA tuned profiles by:
 # 1. Reading intent, accelerator, and service from configmap
-# 2. Constructing the profile name as nvidia-{accelerator}-{intent}
-# 3. Copying common base profiles to /usr/lib/tuned/
-# 4. Selecting the appropriate OS-specific workload profiles
-# 5. Setting up the service profile with dynamic include
+# 2. Constructing the workload profile name as nvidia-{accelerator}-{intent}
+# 3. Final profile name: {service}-{accelerator}-{intent} when service is set, else workload profile name
+# 4. Copying common base profiles to /usr/lib/tuned/
+# 5. Selecting the appropriate OS-specific workload profiles
+# 6. Setting up the service profile with dynamic include
 
 set -xe
 set -u
@@ -132,10 +133,23 @@ validate_profile() {
     echo "Validated profile exists: $profile"
 }
 
-# Deploy service profile with dynamic include
+# Build the final profile name: {service}-{accelerator}-{intent} when service is set
+build_final_profile_name() {
+    local service=$1
+    local accelerator=$2
+    local intent=$3
+    if [ -n "$service" ]; then
+        echo "${service}-${accelerator}-${intent}"
+    else
+        echo "nvidia-${accelerator}-${intent}"
+    fi
+}
+
+# Deploy service profile with dynamic include (into directory named {service}-{accelerator}-{intent})
 deploy_service_profile() {
     local service=$1
     local profile=$2
+    local final_profile_name=$3
     local service_dir="$PROFILES_DIR/service/$service"
 
     if [ ! -d "$service_dir" ]; then
@@ -158,15 +172,15 @@ deploy_service_profile() {
         local profile_to_include="$profile"
     fi
 
-    # Create service profile directory
-    mkdir -p "$TUNED_USER_DIR/$service"
+    # Create service profile directory (final profile name = {service}-{accelerator}-{intent})
+    mkdir -p "$TUNED_USER_DIR/$final_profile_name"
 
     # Copy template and inject include line
     local template="$service_dir/tuned.conf.template"
     if [ -f "$template" ]; then
         # Insert include= line after [main]
-        sed "s/^\[main\]/[main]\ninclude=$profile_to_include/" "$template" | tee "$TUNED_USER_DIR/$service/tuned.conf" > /dev/null
-        echo "Created service profile: $service with include=$profile_to_include"
+        sed "s/^\[main\]/[main]\ninclude=$profile_to_include/" "$template" | tee "$TUNED_USER_DIR/$final_profile_name/tuned.conf" > /dev/null
+        echo "Created service profile: $final_profile_name with include=$profile_to_include"
     else
         echo "ERROR: Service template not found: $template"
         exit 1
@@ -178,8 +192,8 @@ deploy_service_profile() {
         filename=$(basename "$file")
         [ "$filename" = "tuned.conf.template" ] && continue
         [[ "$filename" == *.conf ]] && continue  # Skip .conf files (they're service-specific profiles)
-        cp "$file" "$TUNED_USER_DIR/$service/$filename"
-        chmod +x "$TUNED_USER_DIR/$service/$filename" 2>/dev/null || true
+        cp "$file" "$TUNED_USER_DIR/$final_profile_name/$filename"
+        chmod +x "$TUNED_USER_DIR/$final_profile_name/$filename" 2>/dev/null || true
         echo "Copied service file: $filename"
     done
 }
@@ -247,9 +261,10 @@ main() {
         SERVICE=$(cat "$SERVICE_FILE" | xargs)
         if [ -n "$SERVICE" ]; then
             echo "Requested service: $SERVICE"
-            deploy_service_profile "$SERVICE" "$PROFILE"
-            # Active profile is the service (which includes the workload profile)
-            write_tuned_profile "$SERVICE"
+            FINAL_PROFILE=$(build_final_profile_name "$SERVICE" "$ACCELERATOR" "$INTENT")
+            echo "Final profile name: $FINAL_PROFILE (service=$SERVICE, accelerator=$ACCELERATOR, intent=$INTENT)"
+            deploy_service_profile "$SERVICE" "$PROFILE" "$FINAL_PROFILE"
+            write_tuned_profile "$FINAL_PROFILE"
         else
             # No service, use workload profile directly
             write_tuned_profile "$PROFILE"
