@@ -103,7 +103,7 @@
                 ],
                 "on_host": true,
                 "env": {},
-                "idempotence": true,
+                "idempotence": false,
                 "upgrade_step": false
             },
             {

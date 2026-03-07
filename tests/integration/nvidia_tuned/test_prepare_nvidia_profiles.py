@@ -294,33 +294,39 @@ def test_prepare_nvidia_profiles_with_aws_service(base_image, accelerator, inten
         
         assert_exit_code(result, 0)
         
-        # Verify service profile was created
-        expected_profile = f"nvidia-{accelerator}-{intent}"
+        # Final profile name = {service}-{accelerator}-{intent}
+        expected_workload_profile = f"nvidia-{accelerator}-{intent}"
+        expected_final_profile = f"aws-{accelerator}-{intent}"
         assert_output_contains(result.stdout, "Requested service: aws")
-        assert_output_contains(result.stdout, f"include={expected_profile}")
+        assert_output_contains(result.stdout, f"include={expected_workload_profile}")
+        assert_output_contains(result.stdout, f"Final profile name: {expected_final_profile}")
         
-        # Verify service profile directory exists
-        service_profile_exists = runner.file_exists("/etc/tuned/aws/tuned.conf")
-        assert service_profile_exists, "AWS service profile was not deployed"
+        # Verify service profile directory exists (final name = aws-{accelerator}-{intent})
+        service_profile_exists = runner.file_exists(f"/etc/tuned/{expected_final_profile}/tuned.conf")
+        assert service_profile_exists, f"AWS service profile {expected_final_profile} was not deployed"
         
         # Verify service profile includes the workload profile
-        service_profile_content = runner.get_file_contents("/etc/tuned/aws/tuned.conf")
-        assert f"include={expected_profile}" in service_profile_content, \
-            f"AWS profile does not include {expected_profile}"
+        service_profile_content = runner.get_file_contents(
+            f"/etc/tuned/{expected_final_profile}/tuned.conf"
+        )
+        assert f"include={expected_workload_profile}" in service_profile_content, \
+            f"AWS profile does not include {expected_workload_profile}"
         
-        # Verify tuned_profile file points to service
+        # Verify tuned_profile file points to final profile ({service}-{accelerator}-{intent})
         tuned_profile_content = runner.get_file_contents(
             "/skyhook-package/configmaps/tuned_profile"
         )
-        assert "aws" in tuned_profile_content, \
-            "tuned_profile should point to 'aws' service profile"
+        assert tuned_profile_content.strip() == expected_final_profile, \
+            f"tuned_profile should be '{expected_final_profile}', got: {tuned_profile_content!r}"
         
-        # For AWS, verify bootloader script exists
-        bootloader_script_exists = runner.file_exists("/etc/tuned/aws/bootloader.sh")
+        # For AWS, verify bootloader script exists in final profile dir
+        bootloader_script_exists = runner.file_exists(
+            f"/etc/tuned/{expected_final_profile}/bootloader.sh"
+        )
         assert bootloader_script_exists, "AWS bootloader.sh script was not deployed"
         
-        # Verify script.sh exists
-        script_exists = runner.file_exists("/etc/tuned/aws/script.sh")
+        # Verify script.sh exists in final profile dir
+        script_exists = runner.file_exists(f"/etc/tuned/{expected_final_profile}/script.sh")
         assert script_exists, "AWS script.sh was not deployed"
         
     finally:
@@ -365,9 +371,11 @@ def test_prepare_nvidia_profiles_aws_grub_config(base_image):
         assert "TUNED_BOOT_CMDLINE=\"iommu=pt hugepages=8192\"" in bootcmdline_content, \
             "Bootcmdline file should contain the actual boot parameters (iommu=pt hugepages=8192)"
         
+        # Final profile name = aws-h100-inference for this test's configmaps
+        final_profile = "aws-h100-inference"
         # Run the AWS bootloader script (skip update-grub if it fails)
         bootloader_result = runner.container.exec_run(
-            ["bash", "-c", "/etc/tuned/aws/bootloader.sh || true"],
+            ["bash", "-c", f"/etc/tuned/{final_profile}/bootloader.sh || true"],
             workdir="/"
         )
         

@@ -31,11 +31,23 @@ ACCELERATOR_FILE="$CONFIGMAP_DIR/accelerator"
 SERVICE_FILE="$CONFIGMAP_DIR/service"
 TUNED_PROFILE_FILE="$CONFIGMAP_DIR/tuned_profile"
 
-# Build the profile name from configmap fields
+# Build the workload profile name from configmap fields
 build_profile_name() {
     local intent=$1
     local accelerator=$2
     echo "nvidia-${accelerator}-${intent}"
+}
+
+# Build the final profile name: {service}-{accelerator}-{intent} when service is set
+build_final_profile_name() {
+    local service=$1
+    local accelerator=$2
+    local intent=$3
+    if [ -n "$service" ]; then
+        echo "${service}-${accelerator}-${intent}"
+    else
+        echo "nvidia-${accelerator}-${intent}"
+    fi
 }
 
 # Verify common profiles are deployed
@@ -125,31 +137,31 @@ verify_constructed_profile() {
     echo "Verified constructed profile: $profile"
 }
 
-# Verify service profile is deployed with correct include
+# Verify service profile is deployed with correct include (final profile name = {service}-{accelerator}-{intent})
 verify_service_profile() {
-    local service=$1
-    local expected_profile=$2
+    local final_profile_name=$1
+    local expected_workload_profile=$2
 
-    if [ ! -d "$TUNED_USER_DIR/$service" ]; then
-        echo "ERROR: Service profile directory missing: $TUNED_USER_DIR/$service"
+    if [ ! -d "$TUNED_USER_DIR/$final_profile_name" ]; then
+        echo "ERROR: Service profile directory missing: $TUNED_USER_DIR/$final_profile_name"
         exit 1
     fi
 
-    local service_conf="$TUNED_USER_DIR/$service/tuned.conf"
+    local service_conf="$TUNED_USER_DIR/$final_profile_name/tuned.conf"
     if [ ! -f "$service_conf" ]; then
-        echo "ERROR: tuned.conf missing for service profile: $service"
+        echo "ERROR: tuned.conf missing for service profile: $final_profile_name"
         exit 1
     fi
 
-    # Verify include line points to correct profile
-    if ! grep -q "^include=$expected_profile" "$service_conf"; then
-        echo "ERROR: Service profile $service does not include $expected_profile"
+    # Verify include line points to workload profile
+    if ! grep -q "^include=$expected_workload_profile" "$service_conf"; then
+        echo "ERROR: Service profile $final_profile_name does not include $expected_workload_profile"
         echo "Contents of $service_conf:"
         cat "$service_conf"
         exit 1
     fi
 
-    echo "Verified service profile: $service includes $expected_profile"
+    echo "Verified service profile: $final_profile_name includes $expected_workload_profile"
 }
 
 # Verify tuned_profile file exists and is correct
@@ -206,10 +218,10 @@ main() {
     if [ -f "$SERVICE_FILE" ]; then
         SERVICE=$(cat "$SERVICE_FILE" | xargs)
         if [ -n "$SERVICE" ]; then
-            # Verify service profile
-            verify_service_profile "$SERVICE" "$PROFILE"
-            # Expected active profile is the service
-            verify_tuned_profile_file "$SERVICE"
+            FINAL_PROFILE=$(build_final_profile_name "$SERVICE" "$ACCELERATOR" "$INTENT")
+            # Verify service profile (final name = {service}-{accelerator}-{intent})
+            verify_service_profile "$FINAL_PROFILE" "$PROFILE"
+            verify_tuned_profile_file "$FINAL_PROFILE"
         else
             # No service, active profile is the workload profile
             verify_tuned_profile_file "$PROFILE"
