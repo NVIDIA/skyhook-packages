@@ -73,6 +73,7 @@ deploy_common_profiles() {
         for profile_dir in "$PROFILES_DIR/common"/*/; do
             [ -d "$profile_dir" ] || continue
             profile_name=$(basename "$profile_dir")
+            rm -rf "$TUNED_SYSTEM_DIR/$profile_name"
             cp -rL "$profile_dir" "$TUNED_SYSTEM_DIR/$profile_name"
             echo "Deployed common profile: $profile_name"
         done
@@ -93,6 +94,7 @@ deploy_os_profiles() {
         for profile_dir in "$PROFILES_DIR/os/common"/*/; do
             [ -d "$profile_dir" ] || continue
             profile_name=$(basename "$profile_dir")
+            rm -rf "$TUNED_USER_DIR/$profile_name"
             cp -rL "$profile_dir" "$TUNED_USER_DIR/$profile_name"
             echo "Deployed common profile: $profile_name"
         done
@@ -106,6 +108,7 @@ deploy_os_profiles() {
         for profile_dir in "$PROFILES_DIR/os/$OS_ID/$VERSION"/*/; do
             [ -d "$profile_dir" ] || continue
             profile_name=$(basename "$profile_dir")
+            rm -rf "$TUNED_USER_DIR/$profile_name"
             cp -rL "$profile_dir" "$TUNED_USER_DIR/$profile_name"
             echo "Deployed OS-specific profile: $profile_name"
         done
@@ -172,7 +175,8 @@ deploy_service_profile() {
         local profile_to_include="$profile"
     fi
 
-    # Create service profile directory (final profile name = {service}-{accelerator}-{intent})
+    # Create service profile directory (final profile name = {service}-{accelerator}-{intent}); remove first so changed content is applied
+    rm -rf "$TUNED_USER_DIR/$final_profile_name"
     mkdir -p "$TUNED_USER_DIR/$final_profile_name"
 
     # Copy template and inject include line
