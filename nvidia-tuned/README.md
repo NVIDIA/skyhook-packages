@@ -8,7 +8,7 @@ This package inherits from the base `tuned` package and adds pre-configured tune
 
 - **Common base profiles**: Foundational settings deployed to `/usr/lib/tuned/`
 - **OS-specific workload profiles**: Profiles that may vary by OS version
-- **Service profiles**: Service-specific settings (AWS, GCP, etc.)
+- **Service profiles**: Service-specific settings (eks, GCP, etc.)
 
 The configmap uses an **intent-based** model where you specify **what** you want (intent + accelerator) rather than a specific profile name. The profile name `nvidia-{accelerator}-{intent}` is constructed automatically.
 
@@ -56,7 +56,7 @@ profiles/
 │   └── rhel/
 │       └── 9/              # Symlinks to os/common/ (override when needed)
 └── service/
-    └── aws/
+    └── eks/
         ├── tuned.conf.template  # Service template (include= added dynamically)
         └── script.sh
 ```
@@ -95,10 +95,10 @@ Examples:
 
 ### Inheritance Chain
 
-When you specify `intent: inference`, `accelerator: h100`, and `service: aws`:
+When you specify `intent: inference`, `accelerator: h100`, and `service: eks`:
 
 ```
-aws (active profile)
+eks (active profile)
   └── includes: nvidia-h100-inference
         └── includes: nvidia-h100-performance
               └── includes: nvidia-acs-disable
@@ -111,7 +111,7 @@ aws (active profile)
 apiVersion: skyhook.nvidia.com/v1alpha1
 kind: Skyhook
 metadata:
-  name: nvidia-tuned-aws
+  name: nvidia-tuned-eks
 spec:
   nodeSelectors:
     matchLabels:
@@ -131,7 +131,7 @@ spec:
       configMap:
         intent: inference
         accelerator: h100
-        service: aws
+        service: eks
 ```
 
 ### ConfigMap Fields
@@ -140,7 +140,7 @@ spec:
 |-------|----------|---------|-------------|
 | `accelerator` | Yes | — | GPU/accelerator type (e.g., `h100`) |
 | `intent` | No | `performance` | Workload intent (e.g., `inference`, `performance`, `multiNodeTraining`) |
-| `service` | No | — | Service name (e.g., `aws`). If specified, service profile wraps the workload profile |
+| `service` | No | — | Service name (e.g., `eks`). If specified, service profile wraps the workload profile |
 
 ## Available Profiles
 
@@ -163,7 +163,7 @@ spec:
 
 | Service | Description |
 |---------|-------------|
-| `aws` | AWS-specific settings (MAC address policy for CNI) |
+| `eks` | eks-specific settings (MAC address policy for CNI) |
 
 ## Adding OS-Specific Overrides
 
