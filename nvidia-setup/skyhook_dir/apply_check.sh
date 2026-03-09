@@ -10,7 +10,7 @@ if [ "${NVIDIA_SETUP_INSTALL_KERNEL}" = "true" ]; then
   exit 0
 fi
 
-check_aws_h100() {
+check_eks_h100() {
   "${STEPS_CHECK_DIR}/upgrade_check.sh"
   "${STEPS_CHECK_DIR}/install_efa_driver_check.sh"
   "${STEPS_CHECK_DIR}/install_ofi_check.sh"
@@ -19,7 +19,7 @@ check_aws_h100() {
   "${STEPS_CHECK_DIR}/setup_local_disks_check.sh"
 }
 
-check_aws_gb200() {
+check_eks_gb200() {
   "${STEPS_CHECK_DIR}/upgrade_check.sh"
   "${STEPS_CHECK_DIR}/install_efa_driver_check.sh"
   "${STEPS_CHECK_DIR}/install_ofi_check.sh"
@@ -29,8 +29,8 @@ check_aws_gb200() {
 }
 
 case "${COMBINATION}" in
-  aws-h100)  check_aws_h100 ;;
-  aws-gb200) check_aws_gb200 ;;
+  eks-h100)  check_eks_h100 ;;
+  eks-gb200) check_eks_gb200 ;;
   *)
     echo "Unsupported combination: ${COMBINATION}" >&2
     echo "Supported: $(find "${DEFAULTS_DIR}" -maxdepth 1 -name '*.conf' -exec basename {} .conf \; 2>/dev/null | tr '\n' ' ')" >&2
