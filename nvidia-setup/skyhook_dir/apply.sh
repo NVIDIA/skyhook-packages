@@ -17,7 +17,7 @@ fi
 # Otherwise: ensure current kernel is >= required, then run full apply
 "${STEPS_DIR}/ensure_kernel.sh"
 
-run_eks_h100() {
+run_aws_h100() {
   "${STEPS_DIR}/upgrade.sh"
   "${STEPS_DIR}/install-efa-driver.sh" "${EFA}"
   "${STEPS_DIR}/install_ofi.sh"
@@ -26,7 +26,7 @@ run_eks_h100() {
   "${STEPS_DIR}/setup_local_disks.sh" raid0
 }
 
-run_eks_gb200() {
+run_aws_gb200() {
   "${STEPS_DIR}/upgrade.sh"
   "${STEPS_DIR}/install-efa-driver.sh" "${EFA}"
   "${STEPS_DIR}/install_ofi.sh"
@@ -36,8 +36,8 @@ run_eks_gb200() {
 }
 
 case "${COMBINATION}" in
-  eks-h100)  run_eks_h100 ;;
-  eks-gb200) run_eks_gb200 ;;
+  aws-h100)  run_aws_h100 ;;
+  aws-gb200) run_aws_gb200 ;;
   *)
     echo "Unsupported combination: ${COMBINATION}" >&2
     echo "Supported: $(find "${DEFAULTS_DIR}" -maxdepth 1 -name '*.conf' -exec basename {} .conf \; 2>/dev/null | tr '\n' ' ')" >&2

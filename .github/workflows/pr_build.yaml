@@ -243,7 +243,7 @@ jobs:
         id: version
         run: |
           # Get short SHA
-          SHORT_SHA=$(git rev-parse --short HEAD)
+          SHORT_SHA="sha$(git rev-parse --short HEAD)"
           echo "short_sha=${SHORT_SHA}" >> $GITHUB_OUTPUT
           
           # Find the latest tag for this package (format: package/X.Y.Z)
