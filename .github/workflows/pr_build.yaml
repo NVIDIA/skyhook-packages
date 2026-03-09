@@ -226,7 +226,7 @@ jobs:
 
   # Fourth job: build changed packages
   build:
-    needs: [detect-changes, validate]
+    needs: [detect-changes, validate, test]
     if: needs.detect-changes.outputs.has_changes == 'true'
     runs-on: ubuntu-latest
     strategy:
@@ -275,7 +275,7 @@ jobs:
 
   # Summary job to report status
   build-summary:
-    needs: [detect-changes, validate, build]
+    needs: [detect-changes, validate, test, build]
     if: always()
     runs-on: ubuntu-latest
     steps:
