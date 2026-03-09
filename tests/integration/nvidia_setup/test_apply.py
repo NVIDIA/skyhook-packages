@@ -28,14 +28,14 @@ def test_unsupported_combination():
     finally:
         runner.cleanup()
 
-@pytest.mark.skip(reason="Skipping test_apply_aws_h100. Kernel is flaky based on where it is run.")
-def test_apply_aws_h100(base_image):
-    """Test apply.sh with aws-h100 combination."""
+@pytest.mark.skip(reason="Skipping test_apply_eks_h100. Kernel is flaky based on where it is run.")
+def test_apply_eks_h100(base_image):
+    """Test apply.sh with eks-h100 combination."""
     runner = DockerTestRunner(package="nvidia-setup", base_image=base_image)
     try:
         result = runner.run_script(
             script="apply.sh",
-            configmaps={"service": "aws", "accelerator": "h100"},
+            configmaps={"service": "eks", "accelerator": "h100"},
             skip_system_operations=True
         )
         
@@ -44,14 +44,14 @@ def test_apply_aws_h100(base_image):
     finally:
         runner.cleanup()
 
-@pytest.mark.skip(reason="Skipping test_apply_aws_gb200. Kernel is flaky based on where it is run.")
-def test_apply_aws_gb200(base_image):
-    """Test apply.sh with aws-gb200 combination."""
+@pytest.mark.skip(reason="Skipping test_apply_eks_gb200. Kernel is flaky based on where it is run.")
+def test_apply_eks_gb200(base_image):
+    """Test apply.sh with eks-gb200 combination."""
     runner = DockerTestRunner(package="nvidia-setup", base_image=base_image)
     try:
         result = runner.run_script(
             script="apply.sh",
-            configmaps={"service": "aws", "accelerator": "gb200"},
+            configmaps={"service": "eks", "accelerator": "gb200"},
             skip_system_operations=True
         )
         
@@ -66,7 +66,7 @@ def test_apply_with_env_overrides(base_image):
     try:
         result = runner.run_script(
             script="apply.sh",
-            configmaps={"service": "aws", "accelerator": "h100"},
+            configmaps={"service": "eks", "accelerator": "h100"},
             env_vars={
                 "NVIDIA_KERNEL": "6.8.0",
                 "NVIDIA_SETUP_KERNEL_ALLOW_NEWER": "true",  # container kernel may be newer than override
@@ -108,9 +108,9 @@ def test_apply_dynamic_supported_listing(base_image):
         )
         
         assert_exit_code(result, 1)
-        # Should contain at least aws-h100 and aws-gb200 in the supported list
-        assert_output_contains(result.stdout, "aws-h100")
-        assert_output_contains(result.stdout, "aws-gb200")
+        # Should contain at least eks-h100 and eks-gb200 in the supported list
+        assert_output_contains(result.stdout, "eks-h100")
+        assert_output_contains(result.stdout, "eks-gb200")
     finally:
         runner.cleanup()
 
@@ -121,7 +121,7 @@ def test_apply_install_kernel_only_skips_actual_install(base_image):
     try:
         result = runner.run_script(
             script="apply.sh",
-            configmaps={"service": "aws", "accelerator": "h100"},
+            configmaps={"service": "eks", "accelerator": "h100"},
             env_vars={"NVIDIA_SETUP_INSTALL_KERNEL": "true"},
             skip_system_operations=True,
         )
@@ -131,13 +131,13 @@ def test_apply_install_kernel_only_skips_actual_install(base_image):
         runner.cleanup()
 
 
-def test_apply_install_kernel_only_aws_gb200_skips_actual_install(base_image):
-    """Kernel-only path with aws-gb200; skips actual install when SKIP_SYSTEM_OPERATIONS set."""
+def test_apply_install_kernel_only_eks_gb200_skips_actual_install(base_image):
+    """Kernel-only path with eks-gb200; skips actual install when SKIP_SYSTEM_OPERATIONS set."""
     runner = DockerTestRunner(package="nvidia-setup", base_image=base_image)
     try:
         result = runner.run_script(
             script="apply.sh",
-            configmaps={"service": "aws", "accelerator": "gb200"},
+            configmaps={"service": "eks", "accelerator": "gb200"},
             env_vars={"NVIDIA_SETUP_INSTALL_KERNEL": "true"},
             skip_system_operations=True,
         )

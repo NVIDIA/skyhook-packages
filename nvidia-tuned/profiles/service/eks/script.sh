@@ -14,7 +14,7 @@ EXPECTED_NETWORK_CONTENT='[Link]
 MACAddressPolicy=none
 '
 
-# Profile dir (script is in e.g. /etc/tuned/aws-{accelerator}-{intent}/)
+# Profile dir (script is in e.g. /etc/tuned/eks-{accelerator}-{intent}/)
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 apply_network_dropin() {
