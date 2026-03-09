@@ -37,9 +37,14 @@ verify_network_dropin() {
 	[ "${2:-}" = "ignore_missing" ] && ignore_missing=true
 
 	if [ ! -f "$DROPIN_FOLDER/$CONFIG_FILE" ]; then
+		echo "Drop in file doesn't exist: $DROPIN_FOLDER/$CONFIG_FILE"
 		$ignore_missing && exit 0 || exit 1
 	fi
-	if [ "$(cat "$DROPIN_FOLDER/$CONFIG_FILE")" != "$EXPECTED_NETWORK_CONTENT" ]; then
+	# Use a marker so command substitution doesn't strip trailing newline from file content
+	if [ "${EXPECTED_NETWORK_CONTENT}x" != "$(cat "$DROPIN_FOLDER/$CONFIG_FILE"; echo x)" ]; then
+		echo "Drop in file doesn't equal expected content: $DROPIN_FOLDER/$CONFIG_FILE"
+		echo "Expected: $EXPECTED_NETWORK_CONTENT"
+		echo "Actual: $(cat "$DROPIN_FOLDER/$CONFIG_FILE")"
 		exit 1
 	fi
 	exit 0
