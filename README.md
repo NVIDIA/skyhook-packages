@@ -91,6 +91,18 @@ A package that applies the same node setup steps as the dgxcloud_aws_eks VMI for
 - ConfigMap: `service` and `accelerator` only; versions baked in `defaults/*.conf`
 - No OFI, hardening, or system-node-settings; see [nvidia-setup README](./nvidia-setup/README.md)
 
+### 6. NVIDIA Tuning GKE Package (`nvidia-tuning-gke/`)
+Extends the **tuning** package with baked-in H100 and GB200 configs for GKE Container Optimized OS. You supply only `accelerator` and `intent`; the package selects the matching sysctl (and optional containerd drop-in) and runs the base tuning apply. No grub—GKE nodes do not use grub. Note: this is a limited set from nvidia-tuned due to the limitations of the mainly read-only OS. For non COS GKE setups consider updating nvidia-tuned to support gke and use the base profiles.
+
+**Capabilities:**
+- Sysctl and service drop-ins derived from [nvidia-tuned](./nvidia-tuned/)
+- ConfigMap: `accelerator` (h100, gb200) and `intent` (inference, multiNodeTraining)
+- Baked-in profiles under `profiles/{accelerator}/{intent}/`
+
+**Key features:**
+- No manual sysctl.conf authoring; profile content is fixed in the image
+- See [nvidia-tuning-gke README](./nvidia-tuning-gke/README.md)
+
 ## Package Structure
 
 Each package follows the standard skyhook package structure:
