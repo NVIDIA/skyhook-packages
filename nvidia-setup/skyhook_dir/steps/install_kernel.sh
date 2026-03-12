@@ -22,27 +22,27 @@ CURRENT_KERNEL_VERSION=$(uname -r)
 
 downgrade_kernel() {
   # Deterministic selection: construct the exact kernel flavor to install
-  sudo apt update
+  apt update
   full_kernel_ver="$(resolve_full_kernel "${KERNEL_VERSION}")"
 
   # Install older kernel headers
   echo "Installing kernel ${full_kernel_ver}..."
-  sudo apt-get install -y \
+  apt-get install -y \
     linux-image-$full_kernel_ver \
     linux-headers-$full_kernel_ver \
     linux-modules-$full_kernel_ver \
     linux-modules-extra-$full_kernel_ver
     
   # Update grub to make sure the new kernel is available 
-  sudo update-grub
+  update-grub
 
   # List all installed kernels
   dpkg --list | grep linux-image
 
   # Set the default kernel version in /etc/default/grub
-  sudo sed -i 's|^GRUB_DEFAULT=.*|GRUB_DEFAULT=saved|' /etc/default/grub
-  sudo grub-set-default "Advanced options for Ubuntu>Ubuntu, with Linux ${full_kernel_ver}"
-  sudo update-grub
+  sed -i 's|^GRUB_DEFAULT=.*|GRUB_DEFAULT=saved|' /etc/default/grub
+  grub-set-default "Advanced options for Ubuntu>Ubuntu, with Linux ${full_kernel_ver}"
+  update-grub
 
 
   if [ "${NVIDIA_PIN_KERNEL:-false}" = "true" ]; then
