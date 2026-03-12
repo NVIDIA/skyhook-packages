@@ -18,7 +18,7 @@ Profiles are selected by the pair `{accelerator}/{intent}` and live under `profi
 
 ## Interrupts
 
-Use **restart_all_services** so sysctl changes take effect; DO NOT USE reboot interrupt as skyhook has to re-apply all changes every reboot and this will cause an infinite loop. Example:
+Use specific service restarts in order to get the values applied. For current configurations you can use the interrupt below to get the sysctl settings loaded; DO NOT USE reboot interrupt as skyhook has to re-apply all changes every reboot and this will cause an infinite loop. Example:
 
 ```yaml
 packages:
@@ -26,7 +26,9 @@ packages:
     image: ghcr.io/nvidia/skyhook-packages/nvidia-tuning-gke
     version: 0.1.0
     interrupt:
-      type: restart_all_services
+      type: service
+      services:
+        - systemd-sysctl
     configMap:
       accelerator: gb200
       intent: inference

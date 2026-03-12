@@ -1,7 +1,7 @@
 {
     "schema_version": "v1",
     "package_name": "nvidia_tuning_gke",
-    "package_version": "0.1.0",
+    "package_version": "0.1.1",
     "expected_config_files": ["accelerator", "intent"],
     "modes": {
         "config": [
