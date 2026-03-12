@@ -16,6 +16,7 @@ PROFILES_DIR="${SKYHOOK_DIR}/profiles"
 
 ACCELERATOR_FILE="${CONFIGMAP_DIR}/accelerator"
 INTENT_FILE="${CONFIGMAP_DIR}/intent"
+USE_CONTAINERD=${USE_CONTAINERD:-"false"}
 
 # Discover available accelerators (subdirs of profiles/)
 available_accelerators=""
@@ -87,7 +88,7 @@ else
 fi
 
 # Copy service_containerd.conf only if present in profile; otherwise remove (e.g. after switching profile)
-if [ -f "${PROFILE_DIR}/service_containerd.conf" ]; then
+if [ -f "${PROFILE_DIR}/service_containerd.conf" ] && [ "$USE_CONTAINERD" == "true" ]; then
     cp "${PROFILE_DIR}/service_containerd.conf" "${CONFIGMAP_DIR}/service_containerd.conf"
     echo "Copied service_containerd.conf"
 else

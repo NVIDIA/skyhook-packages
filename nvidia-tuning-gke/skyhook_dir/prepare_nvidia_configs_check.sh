@@ -17,6 +17,8 @@ PROFILES_DIR="${SKYHOOK_DIR}/profiles"
 ACCELERATOR_FILE="${CONFIGMAP_DIR}/accelerator"
 INTENT_FILE="${CONFIGMAP_DIR}/intent"
 
+USE_CONTAINERD=${USE_CONTAINERD:-"false"}
+
 # Require accelerator and intent
 if [ ! -f "$ACCELERATOR_FILE" ]; then
     echo "ERROR: accelerator configmap not found"
@@ -47,7 +49,7 @@ if [ ! -f "${CONFIGMAP_DIR}/sysctl.conf" ]; then
     exit 1
 fi
 # If profile has service_containerd.conf, configmaps must have it too
-if [ -f "${PROFILE_DIR}/service_containerd.conf" ]; then
+if [ -f "${PROFILE_DIR}/service_containerd.conf" ] && [ "$USE_CONTAINERD" == "true" ]; then
     if [ ! -f "${CONFIGMAP_DIR}/service_containerd.conf" ]; then
         echo "ERROR: configmaps/service_containerd.conf missing for profile ${ACCELERATOR}/${INTENT}"
         exit 1
